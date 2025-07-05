@@ -323,6 +323,21 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         } else {
           console.log('Vote received for different story, not updating local votes state');
         }
+      } else if (lastMessage.event === 'currentStoryUpdated' && lastMessage.body) {
+        // Handle current story updates from the server
+        const { currentSelectedStory } = lastMessage.body;
+        console.log('Current story updated via WebSocket:', currentSelectedStory);
+        
+        // Find the index of the selected story
+        if (roomData?.stories && currentSelectedStory) {
+          const storyIndex = roomData.stories.findIndex(story => story.storyId === currentSelectedStory);
+          if (storyIndex !== -1) {
+            setCurrentStoryIndex(storyIndex);
+            console.log(`Current story updated to index ${storyIndex} for story: ${currentSelectedStory}`);
+          } else {
+            console.warn('Selected story not found in current room data:', currentSelectedStory);
+          }
+        }
       }
     }
   }, [lastMessage, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -613,7 +628,24 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     }
 
     if (currentStoryIndex < stories.length - 1) {
-      setCurrentStoryIndex(prev => prev + 1);
+      const nextStoryIndex = currentStoryIndex + 1;
+      const nextStory = roomData?.stories[nextStoryIndex];
+      
+      if (nextStory && sendMessage) {
+        // Send nextStory WebSocket message
+        const nextStoryMessage = {
+          action: 'nextStory',
+          body: {
+            roomId: roomId,
+            nextStoryId: nextStory.storyId
+          }
+        };
+        
+        console.log('Sending nextStory message:', JSON.stringify(nextStoryMessage));
+        sendMessage(nextStoryMessage);
+      }
+      
+      setCurrentStoryIndex(nextStoryIndex);
       // Note: State updates are handled by useEffect that watches currentStoryIndex
     }
   };
@@ -628,24 +660,56 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     }
     
     if (currentApiStory && sendMessage) {
-      // First, mark the current story as pending (skipped)
-      const skipCurrentStoryMessage = {
-        action: 'startVoting',
-        body: {
-          roomId: roomId,
-          storyId: currentApiStory.storyId,
-          status: 'pending'
+      // Move to the next story and send nextStory message
+      if (currentStoryIndex < stories.length - 1) {
+        const nextStoryIndex = currentStoryIndex + 1;
+        const nextStory = roomData?.stories[nextStoryIndex];
+        
+        if (nextStory) {
+          // Send nextStory WebSocket message
+          const nextStoryMessage = {
+            action: 'nextStory',
+            body: {
+              roomId: roomId,
+              nextStoryId: nextStory.storyId
+            }
+          };
+          
+          console.log('Sending nextStory message after skip:', JSON.stringify(nextStoryMessage));
+          sendMessage(nextStoryMessage);
         }
-      };
-      
-      console.log('Sending skip message for current story:', JSON.stringify(skipCurrentStoryMessage));
-      sendMessage(skipCurrentStoryMessage);
-      
-      // Move to the next story but don't start voting automatically
-      handleNextStory();
+        
+        setCurrentStoryIndex(nextStoryIndex);
+      }
     } else {
       console.warn('Cannot skip story: missing story data or WebSocket connection');
     }
+  };
+
+  // Handle story selection from the stories list
+  const handleStorySelection = (newStoryIndex: number) => {
+    if (newStoryIndex === currentStoryIndex) {
+      // No change needed if selecting the same story
+      return;
+    }
+    
+    const selectedStory = roomData?.stories[newStoryIndex];
+    
+    if (selectedStory && sendMessage) {
+      // Send nextStory WebSocket message
+      const nextStoryMessage = {
+        action: 'nextStory',
+        body: {
+          roomId: roomId,
+          nextStoryId: selectedStory.storyId
+        }
+      };
+      
+      console.log('Sending nextStory message for story selection:', JSON.stringify(nextStoryMessage));
+      sendMessage(nextStoryMessage);
+    }
+    
+    setCurrentStoryIndex(newStoryIndex);
   };
 
   // Participant name dialog handlers
@@ -814,7 +878,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
           <StoriesList
             stories={stories}
             currentStoryIndex={currentStoryIndex}
-            setCurrentStoryIndex={setCurrentStoryIndex}
+            setCurrentStoryIndex={handleStorySelection}
             setAddStoryDialog={handleSetAddStoryDialog}
             isRoomCreator={isRoomCreator}
             votes={votes}
