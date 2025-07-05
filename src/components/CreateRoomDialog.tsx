@@ -5,7 +5,8 @@ import {
   DialogContent,
   TextField,
   DialogActions,
-  Button
+  Button,
+  CircularProgress
 } from '@mui/material';
 
 interface CreateRoomDialogProps {
@@ -14,9 +15,17 @@ interface CreateRoomDialogProps {
   newRoomName: string;
   setNewRoomName: (name: string) => void;
   handleCreateRoom: () => void;
+  isCreating?: boolean;
 }
 
-const CreateRoomDialog: FC<CreateRoomDialogProps> = ({ open, onClose, newRoomName, setNewRoomName, handleCreateRoom }) => (
+const CreateRoomDialog: FC<CreateRoomDialogProps> = ({ 
+  open, 
+  onClose, 
+  newRoomName, 
+  setNewRoomName, 
+  handleCreateRoom,
+  isCreating = false
+}) => (
   <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
     <DialogTitle>Create New Room</DialogTitle>
     <DialogContent>
@@ -28,12 +37,20 @@ const CreateRoomDialog: FC<CreateRoomDialogProps> = ({ open, onClose, newRoomNam
         variant="outlined"
         value={newRoomName}
         onChange={(e) => setNewRoomName(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && handleCreateRoom()}
+        onKeyPress={(e) => e.key === 'Enter' && !isCreating && handleCreateRoom()}
+        disabled={isCreating}
       />
     </DialogContent>
     <DialogActions>
-      <Button onClick={onClose}>Cancel</Button>
-      <Button onClick={handleCreateRoom} variant="contained">Create Room</Button>
+      <Button onClick={onClose} disabled={isCreating}>Cancel</Button>
+      <Button 
+        onClick={handleCreateRoom} 
+        variant="contained" 
+        disabled={isCreating || !newRoomName.trim()}
+        startIcon={isCreating ? <CircularProgress size={20} /> : null}
+      >
+        {isCreating ? 'Creating...' : 'Create Room'}
+      </Button>
     </DialogActions>
   </Dialog>
 );

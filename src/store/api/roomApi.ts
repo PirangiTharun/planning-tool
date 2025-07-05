@@ -85,3 +85,38 @@ export const fetchRoomData = async (roomId: string): Promise<RoomApiResponse> =>
     throw new Error('An unexpected error occurred');
   }
 };
+
+// API function to create a new room
+export const createRoom = async (payload: {
+  roomId: string;
+  roomName: string;
+  createdBy: string;
+}): Promise<RoomApiResponse> => {
+  // Use different URLs for development (proxy) vs production
+  const CREATE_ROOM_API_URL = isDevelopment 
+    ? '/createRoom' // Use proxy during development
+    : 'https://9s3y36m7kc.execute-api.us-east-1.amazonaws.com/default/createRoom';
+  
+  try {
+    console.log('Attempting direct fetch for createRoom...');
+    const response = await fetch(CREATE_ROOM_API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data as RoomApiResponse;
+  } catch (error) {
+    console.error('Direct fetch failed for createRoom:', error);
+    throw new Error('Failed to create room due to CORS policy. Please contact your API administrator to enable CORS for this domain.');
+  }
+};

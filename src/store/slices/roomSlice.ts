@@ -19,6 +19,13 @@ export const fetchRoom = createAsyncThunk(
   'room/fetchRoom',
   async (roomId: string, { rejectWithValue }) => {
     try {
+      // Check if participantId exists in localStorage before making API call
+      const participantId = localStorage.getItem('participantId');
+      if (!participantId) {
+        console.log('Skipping API request - no participantId in localStorage');
+        return rejectWithValue('No participant ID found - please enter your name first');
+      }
+      
       console.log('Making API request for room:', roomId);
       const response = await fetchRoomData(roomId);
       return response;
@@ -29,6 +36,14 @@ export const fetchRoom = createAsyncThunk(
   {
     condition: (roomId, { getState }) => {
       const state = getState() as { room: RoomState };
+      
+      // First check if participantId exists in localStorage
+      const participantId = localStorage.getItem('participantId');
+      if (!participantId) {
+        console.log('Skipping fetch - no participantId in localStorage');
+        return false;
+      }
+      
       // Only skip if we already have data for this exact room and no error
       if (state.room.data?.id === roomId && !state.room.error && !state.room.loading) {
         console.log('Skipping fetch - fresh data already exists for room:', roomId);

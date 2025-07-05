@@ -11,11 +11,10 @@ export const useParticipant = () => {
 
   useEffect(() => {
     const storedParticipantId = localStorage.getItem('participantId');
-    const roomCreatedByMe = localStorage.getItem('roomCreatedByMe') === 'true';
 
     if (storedParticipantId) {
       setParticipantId(storedParticipantId);
-    } else if (!roomCreatedByMe) {
+    } else {
       setNameDialog(true);
     }
   }, []);

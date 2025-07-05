@@ -17,11 +17,24 @@ interface CurrentStoryProps {
 const CurrentStory: FC<CurrentStoryProps> = ({ currentStory, roomName, roomId }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (roomId) {
-      navigator.clipboard.writeText(roomId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(roomId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (error) {
+        console.error('Failed to copy room ID:', error);
+        // Fallback for older browsers or if clipboard API fails
+        const textArea = document.createElement('textarea');
+        textArea.value = roomId;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     }
   };
 
@@ -33,7 +46,7 @@ const CurrentStory: FC<CurrentStoryProps> = ({ currentStory, roomName, roomId })
           <Typography variant="body2" color="text.secondary">
             Room ID: {roomId}
           </Typography>
-          <Tooltip title={copied ? 'Copied!' : 'Copy ID'}>
+          <Tooltip title={copied ? 'Room ID copied!' : 'Copy Room ID'}>
             <IconButton
               onClick={handleCopy}
               size="small"

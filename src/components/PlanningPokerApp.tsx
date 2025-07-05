@@ -7,6 +7,7 @@ import {
   Button,
   Snackbar,
   Alert,
+  Tooltip,
 } from "@mui/material";
 import { Assignment as AssignmentIcon, Link as LinkIcon, ExitToApp as LeaveIcon } from "@mui/icons-material";
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -37,10 +38,23 @@ const AppLayout = () => {
   const isRoomPage = location.pathname.startsWith('/room/');
   const roomId = isRoomPage ? location.pathname.split('/room/')[1] : null;
 
-  const handleCopyToClipboard = () => {
+  const handleCopyToClipboard = async () => {
     if (roomId) {
-      navigator.clipboard.writeText(`${window.location.origin}/room/${roomId}`);
-      setSnackbarOpen(true);
+      try {
+        const inviteUrl = `${window.location.origin}/room/${roomId}`;
+        await navigator.clipboard.writeText(inviteUrl);
+        setSnackbarOpen(true);
+      } catch (error) {
+        console.error('Failed to copy invite link:', error);
+        // Fallback for older browsers or if clipboard API fails
+        const textArea = document.createElement('textarea');
+        textArea.value = `${window.location.origin}/room/${roomId}`;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setSnackbarOpen(true);
+      }
     }
   };
 
@@ -73,14 +87,16 @@ const AppLayout = () => {
           <Box>
             {isRoomPage ? (
               <>
-                <Button
-                  color="inherit"
-                  sx={{ color: "text.secondary", textTransform: "none", mr: 1 }}
-                  startIcon={<LinkIcon />}
-                  onClick={handleCopyToClipboard}
-                >
-                  Copy Invite Link
-                </Button>
+                <Tooltip title="Copy room URL to share with others">
+                  <Button
+                    color="inherit"
+                    sx={{ color: "text.secondary", textTransform: "none", mr: 1 }}
+                    startIcon={<LinkIcon />}
+                    onClick={handleCopyToClipboard}
+                  >
+                    Copy Invite Link
+                  </Button>
+                </Tooltip>
                 <Button
                   color="error"
                   sx={{ textTransform: "none" }}
@@ -143,6 +159,7 @@ const PlanningPokerApp = () => {
     rooms,
     createRoomDialog,
     newRoomName,
+    isCreatingRoom,
     setCreateRoomDialog,
     setNewRoomName,
     handleCreateRoom,
@@ -154,11 +171,19 @@ const PlanningPokerApp = () => {
     navigate(`/room/${room.id}`);
   };
 
-  const handleCreateRoomAndSwitchView = () => {
-    const newRoom = handleCreateRoom();
-    if (newRoom) {
-      localStorage.setItem('roomCreatedByMe', 'true');
-      navigate(`/room/${newRoom.id}`);
+  const handleCreateRoomAndSwitchView = async () => {
+    const result = await handleCreateRoom();
+    if (result) {
+      const { roomId, roomName, needsParticipantInfo } = result;
+      
+      if (needsParticipantInfo) {
+        // No participant info - navigate to room and let RoomPage handle the name dialog
+        localStorage.setItem('pendingRoomCreation', JSON.stringify({ roomId, roomName }));
+        navigate(`/room/${roomId}`);
+      } else {
+        // Participant exists - room was created successfully
+        navigate(`/room/${roomId}`);
+      }
     }
   };
 
@@ -176,6 +201,7 @@ const PlanningPokerApp = () => {
         newRoomName={newRoomName}
         setNewRoomName={setNewRoomName}
         handleCreateRoom={handleCreateRoomAndSwitchView}
+        isCreating={isCreatingRoom}
       />
     </>
   );

@@ -16,24 +16,27 @@ interface StoriesListProps {
   currentStoryIndex: number;
   setCurrentStoryIndex: (index: number) => void;
   setAddStoryDialog: (open: boolean) => void;
+  isRoomCreator?: boolean;
 }
 
-const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurrentStoryIndex, setAddStoryDialog }) => {
+const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurrentStoryIndex, setAddStoryDialog, isRoomCreator = false }) => {
   return (
     <Paper sx={{ p: 2, mb: 2, maxHeight: '43vh', overflowY: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">Stories</Typography>
-        <Button
-          variant="text"
-          onClick={() => setAddStoryDialog(true)}
-          sx={{
-            '&:hover': {
-              backgroundColor: 'primary.light',
-            },
-          }}
-        >
-          + Add
-        </Button>
+        {isRoomCreator && (
+          <Button
+            variant="text"
+            onClick={() => setAddStoryDialog(true)}
+            sx={{
+              '&:hover': {
+                backgroundColor: 'primary.light',
+              },
+            }}
+          >
+            + Add
+          </Button>
+        )}
       </Box>
       <List dense>
         {stories.map((story, index) => (

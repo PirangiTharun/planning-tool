@@ -123,8 +123,13 @@ export const useSocket = (roomId: string | null, participantId?: string | null, 
       ws.current.send(JSON.stringify(disconnectMessage));
       console.log('Sent disconnect message:', JSON.stringify(disconnectMessage));
       
-      // Close the connection after sending disconnect message
-      ws.current.close();
+      // Add small delay to let server process the disconnect message before closing
+      setTimeout(() => {
+        if (ws.current) {
+          ws.current.close();
+          console.log('WebSocket connection closed after delay');
+        }
+      }, 100);
     } else {
       console.error('WebSocket is not connected.');
     }

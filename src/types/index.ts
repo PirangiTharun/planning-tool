@@ -28,6 +28,7 @@ export interface RoomApiResponse {
   participants: ApiParticipant[];
   id: string;
   name: string;
+  createdBy: string;
 }
 
 // Existing types (keeping for compatibility)

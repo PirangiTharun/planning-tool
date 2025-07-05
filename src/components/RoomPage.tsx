@@ -69,6 +69,16 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   const stories: Story[] = apiStories; // Only use API stories, no local stories
   const participants: Participant[] = transformedData?.participants || [];
   const roomName = transformedData?.roomName || '';
+  
+  // Check if the current participant is the room creator
+  const isRoomCreator = !!(participantId && roomData?.createdBy === participantId);
+  
+  // Debug logging for room creator status
+  console.log('Room creator check:', {
+    participantId,
+    createdBy: roomData?.createdBy,
+    isRoomCreator
+  });
 
   // Initialize participant on component mount
   useEffect(() => {
@@ -78,6 +88,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     
     const storedId = localStorage.getItem('participantId');
     const storedName = localStorage.getItem('participantName');
+    const pendingRoomCreation = localStorage.getItem('pendingRoomCreation');
     
     if (storedId && storedName) {
       // Participant exists in localStorage - this is an existing participant
@@ -85,6 +96,30 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       setParticipantName(storedName);
       setIsParticipantReady(true);
       setIsNewParticipant(false); // Mark as existing participant
+      
+      // If there's a pending room creation, complete it now
+      if (pendingRoomCreation) {
+        const { roomId: pendingRoomId, roomName: pendingRoomName } = JSON.parse(pendingRoomCreation);
+        localStorage.removeItem('pendingRoomCreation');
+        
+        // Call the API directly to complete room creation
+        import('../store/api/roomApi').then(({ createRoom, fetchRoomData }) => {
+          const apiPayload = {
+            roomId: pendingRoomId,
+            roomName: pendingRoomName,
+            createdBy: storedId
+          };
+          
+          createRoom(apiPayload).then(() => {
+            // Only call getRoomDetails if participantId exists
+            if (storedId) {
+              return fetchRoomData(pendingRoomId);
+            }
+          }).catch((error) => {
+            console.error('Error completing room creation:', error);
+          });
+        });
+      }
     } else {
       // No participant in localStorage, show name dialog
       setShowEnterNameDialog(true);
@@ -150,10 +185,38 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   }, [lastMessage, dispatch]);
 
   useEffect(() => {
-    if (roomData) {
+    if (roomData && participantId && participantName) {
       console.log('Room data loaded from API:', roomData);
+      
+      // Check if current participant exists in the room's participant list
+      const currentParticipantExists = roomData.participants.some(
+        participant => participant.participantId === participantId
+      );
+      
+      if (!currentParticipantExists) {
+        console.log('Current participant not found in room data, adding via WebSocket...');
+        
+        // Send participantAdded message via WebSocket if participant doesn't exist
+        if (isConnected && sendMessage) {
+          const participantAddedMessage = {
+            action: 'participantAdded',
+            body: {
+              name: participantName,
+              participantId: participantId,
+              roomId: roomId
+            }
+          };
+          
+          console.log('Sending participantAdded message:', JSON.stringify(participantAddedMessage));
+          sendMessage(participantAddedMessage);
+        } else {
+          console.log('WebSocket not connected, cannot add participant');
+        }
+      } else {
+        console.log('Current participant already exists in room data');
+      }
     }
-  }, [roomData]);
+  }, [roomData, participantId, participantName, isConnected, sendMessage, roomId]);
 
   // Define handleLeaveRoom with useCallback to prevent unnecessary re-renders
   const handleLeaveRoom = useCallback(() => {
@@ -162,7 +225,6 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       disconnectSocket(participantId);
       
       // Clean up session-specific data but keep participant data for future use
-      localStorage.removeItem('roomCreatedByMe');
       localStorage.removeItem('participantSent');
       participantDataSent.current = false;
     }
@@ -243,9 +305,41 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     localStorage.setItem('participantId', newParticipantId);
     localStorage.setItem('participantName', participantName.trim());
     
+    // Dispatch event to notify hooks about participant update
+    window.dispatchEvent(new CustomEvent('participantUpdated'));
+    
     setIsParticipantReady(true);
     setIsNewParticipant(true); // Mark as new participant since they just entered name
     setShowEnterNameDialog(false);
+
+    // Check if there's a pending room creation to complete
+    const pendingRoomCreation = localStorage.getItem('pendingRoomCreation');
+    if (pendingRoomCreation) {
+      const { roomId: pendingRoomId, roomName: pendingRoomName } = JSON.parse(pendingRoomCreation);
+      localStorage.removeItem('pendingRoomCreation');
+      
+      // Call the API to complete room creation
+      import('../store/api/roomApi').then(({ createRoom, fetchRoomData }) => {
+        const apiPayload = {
+          roomId: pendingRoomId,
+          roomName: pendingRoomName,
+          createdBy: newParticipantId
+        };
+        
+        createRoom(apiPayload).then(() => {
+          // Only call getRoomDetails if participantId exists
+          if (newParticipantId) {
+            return fetchRoomData(pendingRoomId);
+          }
+        }).catch((error) => {
+          console.error('Error completing room creation:', error);
+        });
+      });
+    } else {
+      // No pending room creation, but we still need to fetch room data
+      // The useRoomData hook should automatically trigger now that participantId exists
+      console.log('Participant name saved, useRoomData should trigger room fetch');
+    }
 
     // The useEffect hook will handle sending the WebSocket messages
     // Don't send here to avoid duplicate calls
@@ -368,6 +462,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
             currentStoryIndex={currentStoryIndex}
             setCurrentStoryIndex={setCurrentStoryIndex}
             setAddStoryDialog={handleSetAddStoryDialog}
+            isRoomCreator={isRoomCreator}
           />
           <ParticipantsList participants={participants} votes={votes} showResults={showResults} />
         </Box>
@@ -378,47 +473,51 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
             <CurrentStory currentStory={currentStory} roomName={roomName} roomId={roomId} />
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              {!votingInProgress ? (
-                <Button
-                  variant="contained"
-                  startIcon={<PlayIcon />}
-                  onClick={handleStartVoting}
-                >
-                  Start Voting
-                </Button>
-              ) : (
-                <Button
-                  variant="contained"
-                  disabled
-                >
-                  Voting in progress...
-                </Button>
+              {isRoomCreator && (
+                <>
+                  {!votingInProgress ? (
+                    <Button
+                      variant="contained"
+                      startIcon={<PlayIcon />}
+                      onClick={handleStartVoting}
+                    >
+                      Start Voting
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      disabled
+                    >
+                      Voting in progress...
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    startIcon={<SkipIcon />}
+                    onClick={handleSkipStory}
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<EyeIcon />}
+                    onClick={handleShowVotes}
+                    sx={{ ml: 'auto' }}
+                    disabled={Object.keys(votes).length === 0}
+                  >
+                    Show Votes
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleNextStory}
+                    endIcon={<ChevronRightIcon />}
+                    disabled={!cardsRevealed}
+                  >
+                    Next Story
+                  </Button>
+                </>
               )}
-              <Button
-                variant="outlined"
-                startIcon={<SkipIcon />}
-                onClick={handleSkipStory}
-              >
-                Skip
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<EyeIcon />}
-                onClick={handleShowVotes}
-                sx={{ ml: 'auto' }}
-                disabled={Object.keys(votes).length === 0}
-              >
-                Show Votes
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleNextStory}
-                endIcon={<ChevronRightIcon />}
-                disabled={!cardsRevealed}
-              >
-                Next Story
-              </Button>
             </Box>
 
             {(votingInProgress || showResults) && (
@@ -434,16 +533,18 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         </Box>
       </Box>
 
-      <AddStoryDialog
-        open={addStoryDialogOpen}
-        onClose={() => handleSetAddStoryDialog(false)}
-        newStoryTitle={newStoryTitle}
-        setNewStoryTitle={setNewStoryTitle}
-        newStoryDescription={newStoryDescription}
-        setNewStoryDescription={setNewStoryDescription}
-        onSaveAndNext={handleSaveAndNext}
-        onSaveAndClose={handleSaveAndClose}
-      />
+      {isRoomCreator && (
+        <AddStoryDialog
+          open={addStoryDialogOpen}
+          onClose={() => handleSetAddStoryDialog(false)}
+          newStoryTitle={newStoryTitle}
+          setNewStoryTitle={setNewStoryTitle}
+          newStoryDescription={newStoryDescription}
+          setNewStoryDescription={setNewStoryDescription}
+          onSaveAndNext={handleSaveAndNext}
+          onSaveAndClose={handleSaveAndClose}
+        />
+      )}
 
       <EnterNameDialog
         open={showEnterNameDialog}
