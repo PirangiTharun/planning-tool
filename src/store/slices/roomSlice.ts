@@ -72,6 +72,18 @@ const roomSlice = createSlice({
         state.data.stories.push(action.payload);
       }
     },
+    updateStoryStatus: (state, action: PayloadAction<{ storyId: string; status: 'pending' | 'completed' | 'votingInProgress'; storyPoints?: string }>) => {
+      if (state.data) {
+        const storyIndex = state.data.stories.findIndex(story => story.storyId === action.payload.storyId);
+        if (storyIndex !== -1) {
+          state.data.stories[storyIndex].status = action.payload.status;
+          if (action.payload.storyPoints !== undefined) {
+            state.data.stories[storyIndex].storyPoints = action.payload.storyPoints;
+          }
+          console.log('Story status updated in Redux store:', action.payload);
+        }
+      }
+    },
     addParticipant: (state, action: PayloadAction<ApiParticipant>) => {
       if (state.data) {
         // Check if participant already exists (avoid duplicates)
@@ -114,5 +126,5 @@ const roomSlice = createSlice({
   },
 });
 
-export const { clearRoom, updateRoomData, addStory, addParticipant } = roomSlice.actions;
+export const { clearRoom, updateRoomData, addStory, updateStoryStatus, addParticipant } = roomSlice.actions;
 export default roomSlice.reducer;

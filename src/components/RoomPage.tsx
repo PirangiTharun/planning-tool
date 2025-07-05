@@ -27,7 +27,7 @@ import { useSocket } from '../hooks/useSocket';
 import { useRoomData } from '../hooks/useRoomData';
 import { transformRoomApiResponse } from '../utils/dataTransformers';
 import { useAppDispatch } from '../store/hooks';
-import { addStory, addParticipant } from '../store/slices/roomSlice';
+import { addStory, addParticipant, updateStoryStatus } from '../store/slices/roomSlice';
 
 interface RoomPageProps {
   roomId: string;
@@ -44,6 +44,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   
   // Ref to track if we've already sent participant data for this session
   const participantDataSent = useRef(false);
+  const lastProcessedMessageId = useRef<string | null>(null);
   
   // Connect to WebSocket when room is loaded, but don't send connectSocket yet
   const { lastMessage, sendMessage, disconnectSocket, isConnected, connectSocket, connectAndAddParticipant } = useSocket(roomId, null, true);
@@ -155,6 +156,15 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
   useEffect(() => {
     if (lastMessage) {
+      // Create a unique message ID to prevent duplicate processing
+      const messageId = `${lastMessage.event}-${JSON.stringify(lastMessage.body)}`;
+      
+      // Skip if we've already processed this exact message
+      if (lastProcessedMessageId.current === messageId) {
+        return;
+      }
+      
+      lastProcessedMessageId.current = messageId;
       console.log('Received message:', lastMessage);
       
       // Handle incoming messages based on lastMessage.event
@@ -180,9 +190,61 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         
         dispatch(addParticipant(newApiParticipant));
         console.log('Participant added to Redux store:', newApiParticipant);
+      } else if (lastMessage.event === 'storyStatusUpdated' && lastMessage.body) {
+        // Handle story status updates in real-time
+        const { storyId, status, storyPoints } = lastMessage.body;
+        console.log('Story status updated:', lastMessage.body);
+        
+        // Update the story status in Redux store
+        dispatch(updateStoryStatus({ 
+          storyId, 
+          status: status as 'pending' | 'completed' | 'votingInProgress',
+          storyPoints 
+        }));
+        
+        // Find the story index that matches the storyId from current roomData
+        // We need to use a callback to get the latest roomData state
+        if (roomData?.stories) {
+          const storyIndex = roomData.stories.findIndex(story => story.storyId === storyId);
+          
+          if (storyIndex !== undefined && storyIndex !== -1) {
+            // Update the current story index to match the updated story (only if different)
+            setCurrentStoryIndex(prevIndex => {
+              if (storyIndex !== prevIndex) {
+                console.log(`Switching to story index ${storyIndex} for voting`);
+                return storyIndex;
+              }
+              return prevIndex;
+            });
+            
+            // Update voting state based on the new status
+            if (status === 'votingInProgress') {
+              console.log('Starting voting session for all users for story:', storyId);
+              setVotingInProgress(true);
+              setShowResults(false);
+              setCardsRevealed(false);
+              setVotes({});
+              setSelectedEstimate(null);
+            } else if (status === 'completed') {
+              // Story voting is completed
+              setVotingInProgress(false);
+              setShowResults(true);
+              setCardsRevealed(true);
+            } else if (status === 'pending') {
+              // Story is back to pending state
+              setVotingInProgress(false);
+              setShowResults(false);
+              setCardsRevealed(false);
+              setVotes({});
+              setSelectedEstimate(null);
+            }
+          } else {
+            console.warn('Story with ID not found in current room data:', storyId);
+          }
+        }
       }
     }
-  }, [lastMessage, dispatch]);
+  }, [lastMessage, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (roomData && participantId && participantName) {
@@ -255,6 +317,32 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
   // Event handlers
   const handleStartVoting = () => {
+    // Get the current story ID from the original API data
+    const currentApiStory = roomData?.stories[currentStoryIndex];
+    
+    if (!roomData?.stories || roomData.stories.length === 0) {
+      console.warn('Cannot start voting: no stories available');
+      return;
+    }
+    
+    if (currentApiStory && sendMessage) {
+      // Send startVoting message via WebSocket
+      const startVotingMessage = {
+        action: 'startVoting',
+        body: {
+          roomId: roomId,
+          storyId: currentApiStory.storyId,
+          status: 'votingInProgress'
+        }
+      };
+      
+      console.log('Sending startVoting message:', JSON.stringify(startVotingMessage));
+      sendMessage(startVotingMessage);
+    } else {
+      console.warn('Cannot start voting: missing story data or WebSocket connection');
+    }
+    
+    // Update local state
     setVotingInProgress(true);
     setShowResults(false);
     setCardsRevealed(false);
@@ -291,7 +379,33 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   };
 
   const handleSkipStory = () => {
-    handleNextStory();
+    // Get the current story ID from the original API data
+    const currentApiStory = roomData?.stories[currentStoryIndex];
+    
+    if (!roomData?.stories || roomData.stories.length === 0) {
+      console.warn('Cannot skip story: no stories available');
+      return;
+    }
+    
+    if (currentApiStory && sendMessage) {
+      // First, mark the current story as pending (skipped)
+      const skipCurrentStoryMessage = {
+        action: 'startVoting',
+        body: {
+          roomId: roomId,
+          storyId: currentApiStory.storyId,
+          status: 'pending'
+        }
+      };
+      
+      console.log('Sending skip message for current story:', JSON.stringify(skipCurrentStoryMessage));
+      sendMessage(skipCurrentStoryMessage);
+      
+      // Move to the next story but don't start voting automatically
+      handleNextStory();
+    } else {
+      console.warn('Cannot skip story: missing story data or WebSocket connection');
+    }
   };
 
   // Participant name dialog handlers
@@ -480,6 +594,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
                       variant="contained"
                       startIcon={<PlayIcon />}
                       onClick={handleStartVoting}
+                      disabled={!stories || stories.length === 0}
                     >
                       Start Voting
                     </Button>
@@ -520,11 +635,12 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
               )}
             </Box>
 
-            {(votingInProgress || showResults) && (
+            {/* Show voting area based on current story status */}
+            {currentStory && (currentStory.status === 'votingInProgress' || currentStory.status === 'completed') && (
               <VotingArea
-                showResults={showResults}
+                showResults={currentStory.status === 'completed' || showResults}
                 selectedEstimate={selectedEstimate}
-                handleVote={handleVote}
+                handleVote={currentStory.status === 'votingInProgress' ? handleVote : undefined}
               />
             )}
 

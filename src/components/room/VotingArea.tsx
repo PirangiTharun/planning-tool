@@ -10,7 +10,7 @@ import { fibonacciNumbers } from '../../data/constants';
 interface VotingAreaProps {
   showResults: boolean;
   selectedEstimate: string | number | null;
-  handleVote: (estimate: number | string) => void;
+  handleVote?: (estimate: number | string) => void;
 }
 
 const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handleVote }) => {
@@ -28,25 +28,26 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
             md: 'repeat(4, 1fr)',
             lg: 'repeat(6, 1fr)'
           },
-          ...(showResults && {
-            pointerEvents: 'none',
-            opacity: 0.6,
-          }),
         }}
       >
         {fibonacciNumbers.map((num) => (
           <Card
             key={num}
             sx={{
-              cursor: 'pointer',
+              cursor: handleVote && !showResults ? 'pointer' : 'default',
               backgroundColor: selectedEstimate === num ? 'primary.main' : 'background.paper',
               color: selectedEstimate === num ? 'primary.contrastText' : 'text.primary',
               '&:hover': {
-                backgroundColor: selectedEstimate === num ? 'primary.dark' : 'action.hover'
+                backgroundColor: handleVote && !showResults 
+                  ? (selectedEstimate === num ? 'primary.dark' : 'action.hover')
+                  : undefined
               },
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              ...((!handleVote || showResults) && {
+                opacity: 0.6,
+              }),
             }}
-            onClick={() => handleVote(num)}
+            onClick={handleVote && !showResults ? () => handleVote(num) : undefined}
           >
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4">{num}</Typography>
@@ -55,15 +56,20 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
         ))}
         <Card
           sx={{
-            cursor: 'pointer',
+            cursor: handleVote && !showResults ? 'pointer' : 'default',
             backgroundColor: selectedEstimate === '?' ? 'primary.main' : 'background.paper',
             color: selectedEstimate === '?' ? 'primary.contrastText' : 'text.primary',
             '&:hover': {
-              backgroundColor: selectedEstimate === '?' ? 'primary.dark' : 'action.hover'
+              backgroundColor: handleVote && !showResults 
+                ? (selectedEstimate === '?' ? 'primary.dark' : 'action.hover')
+                : undefined
             },
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            ...((!handleVote || showResults) && {
+              opacity: 0.6,
+            }),
           }}
-          onClick={() => handleVote('?')}
+          onClick={handleVote && !showResults ? () => handleVote('?') : undefined}
         >
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
             <Typography variant="h4">?</Typography>

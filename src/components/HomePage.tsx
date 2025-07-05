@@ -22,18 +22,19 @@ import type { Room } from '../types';
 interface HomePageProps {
   rooms: Room[];
   handleJoinRoom: (room: Room) => void;
+  handleJoinRoomById: (roomId: string) => void;
   setCreateRoomDialog: (open: boolean) => void;
 }
 
-const HomePage: FC<HomePageProps> = ({ rooms, handleJoinRoom, setCreateRoomDialog }) => {
+const HomePage: FC<HomePageProps> = ({ rooms, handleJoinRoom, handleJoinRoomById, setCreateRoomDialog }) => {
   const [joinRoomId, setJoinRoomId] = useState('');
 
   const handleJoinWithId = () => {
-    const roomToJoin = rooms.find(room => room.id.toLowerCase() === joinRoomId.toLowerCase().trim());
-    if (roomToJoin) {
-      handleJoinRoom(roomToJoin);
+    const trimmedRoomId = joinRoomId.trim();
+    if (trimmedRoomId) {
+      handleJoinRoomById(trimmedRoomId);
     } else {
-      alert('Room not found!');
+      alert('Please enter a valid Room ID');
     }
   };
 

@@ -11,7 +11,7 @@ export interface ApiStory {
   storyId: string;
   storyPoints: string;
   description: string;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'completed' | 'votingInProgress';
 }
 
 export interface ApiParticipant {
@@ -36,7 +36,7 @@ export interface Story {
   id: number;
   title: string;
   description: string;
-  status: 'completed' | 'pending';
+  status: 'completed' | 'pending' | 'votingInProgress';
   estimate: number | null;
 }
 

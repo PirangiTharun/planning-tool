@@ -171,6 +171,12 @@ const PlanningPokerApp = () => {
     navigate(`/room/${room.id}`);
   };
 
+  const handleJoinRoomByIdAndSwitchView = (roomId: string) => {
+    // Navigate directly to the room page with the given room ID
+    // The RoomPage component will handle fetching the room data and error handling
+    navigate(`/room/${roomId}`);
+  };
+
   const handleCreateRoomAndSwitchView = async () => {
     const result = await handleCreateRoom();
     if (result) {
@@ -192,6 +198,7 @@ const PlanningPokerApp = () => {
       <HomePage
         rooms={rooms}
         handleJoinRoom={handleJoinRoomAndSwitchView}
+        handleJoinRoomById={handleJoinRoomByIdAndSwitchView}
         setCreateRoomDialog={setCreateRoomDialog}
       />
 

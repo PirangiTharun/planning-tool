@@ -43,7 +43,7 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
           <ListItem key={story.id} disablePadding>
             <ListItemButton
               selected={index === currentStoryIndex}
-              onClick={() => setCurrentStoryIndex(index)}
+              onClick={isRoomCreator ? () => setCurrentStoryIndex(index) : undefined}
               sx={{
                 borderRadius: 1,
                 mb: 1,
@@ -61,19 +61,26 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
                     : story.status === 'completed'
                     ? 'success.main'
                     : 'grey.300',
+                cursor: isRoomCreator ? 'pointer' : 'default',
                 '&:hover': {
                   backgroundColor:
                     index === currentStoryIndex
                       ? 'primary.light'
                       : story.status === 'completed'
                       ? 'success.dark'
-                      : undefined,
+                      : 'action.hover',
                 },
               }}
             >
               <ListItemText
                 primary={story.title}
-                secondary={story.status === 'completed' ? `${story.estimate} points` : story.status}
+                secondary={
+                  story.status === 'completed' 
+                    ? `${story.estimate} points` 
+                    : story.status === 'votingInProgress'
+                    ? 'Voting in progress...'
+                    : story.status
+                }
               />
             </ListItemButton>
           </ListItem>
