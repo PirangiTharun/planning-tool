@@ -27,7 +27,7 @@ const ParticipantsList: FC<ParticipantsListProps> = ({ participants, votes, show
       <Typography variant="h6" gutterBottom>Participants ({participants.length})</Typography>
       <List dense>
         {participants.map((participant) => (
-          <ListItem key={participant.id}>
+          <ListItem key={participant.participantId}>
             <Box
               sx={{
                 width: 32,
@@ -48,15 +48,15 @@ const ParticipantsList: FC<ParticipantsListProps> = ({ participants, votes, show
             <ListItemText primary={participant.name} />
             {showResults ? (
               <Chip
-                label={votes[participant.id] ?? 'N/A'}
+                label={votes[participant.participantId] ?? 'N/A'}
                 color="primary"
                 size="small"
                 variant="outlined"
               />
             ) : (
               <Chip
-                label={votes[participant.id] ? 'Voted' : 'Voting...'}
-                color={votes[participant.id] ? 'success' : 'default'}
+                label={votes[participant.participantId] ? 'Voted' : 'Voting...'}
+                color={votes[participant.participantId] ? 'success' : 'default'}
                 size="small"
               />
             )}

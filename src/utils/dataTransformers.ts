@@ -5,8 +5,10 @@ export const transformApiStoryToStory = (apiStory: ApiStory, index: number): Sto
   id: index + 1, // Start from 1 instead of 0
   title: apiStory.description,
   description: apiStory.description,
-  status: apiStory.status,
+  status: apiStory.status as 'completed' | 'complete' | 'pending' | 'votingInProgress', // Cast to include 'complete'
   estimate: apiStory.storyPoints === 'n/a' ? null : parseInt(apiStory.storyPoints, 10) || null,
+  finalEstimate: apiStory.finalEstimate, // Preserve the final estimate for completed stories
+  votes: apiStory.votes, // Preserve the votes for completed stories
 });
 
 // Transform API participant to local participant format
@@ -16,6 +18,7 @@ export const transformApiParticipantToParticipant = (apiParticipant: ApiParticip
   
   return {
     id: index + 1, // Start from 1 instead of 0
+    participantId: apiParticipant.participantId, // Preserve the actual participantId
     name: apiParticipant.name,
     initials: initials || 'U', // Fallback to 'U' for unknown
     voted: apiParticipant.status === 'voted',

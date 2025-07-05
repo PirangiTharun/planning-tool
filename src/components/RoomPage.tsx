@@ -6,6 +6,7 @@ import {
   Button,
   CircularProgress,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import {
   PlayArrow as PlayIcon,
@@ -27,7 +28,7 @@ import { useSocket } from '../hooks/useSocket';
 import { useRoomData } from '../hooks/useRoomData';
 import { transformRoomApiResponse } from '../utils/dataTransformers';
 import { useAppDispatch } from '../store/hooks';
-import { addStory, addParticipant, updateStoryStatus } from '../store/slices/roomSlice';
+import { addStory, addParticipant, updateStoryStatus, updateParticipant } from '../store/slices/roomSlice';
 
 interface RoomPageProps {
   roomId: string;
@@ -45,6 +46,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   // Ref to track if we've already sent participant data for this session
   const participantDataSent = useRef(false);
   const lastProcessedMessageId = useRef<string | null>(null);
+  const initialStoryIndexSet = useRef(false); // Track if we've set the initial story index from API
   
   // Connect to WebSocket when room is loaded, but don't send connectSocket yet
   const { lastMessage, sendMessage, disconnectSocket, isConnected, connectSocket, connectAndAddParticipant } = useSocket(roomId, null, true);
@@ -190,17 +192,65 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         
         dispatch(addParticipant(newApiParticipant));
         console.log('Participant added to Redux store:', newApiParticipant);
+      } else if (lastMessage.event === 'storySelected' && lastMessage.body) {
+        // Handle story selection updates
+        const { storyId } = lastMessage.body;
+        console.log('Story selected via WebSocket:', storyId);
+        
+        // Find the index of the selected story
+        if (roomData?.stories) {
+          const storyIndex = roomData.stories.findIndex(story => story.storyId === storyId);
+          if (storyIndex !== -1) {
+            setCurrentStoryIndex(storyIndex);
+            console.log(`Story selection updated to index ${storyIndex} for story: ${storyId}`);
+          } else {
+            console.warn('Selected story not found in current room data:', storyId);
+          }
+        }
       } else if (lastMessage.event === 'storyStatusUpdated' && lastMessage.body) {
         // Handle story status updates in real-time
-        const { storyId, status, storyPoints } = lastMessage.body;
+        const { storyId, status, storyPoints, votes: storyVotes } = lastMessage.body;
         console.log('Story status updated:', lastMessage.body);
         
-        // Update the story status in Redux store
-        dispatch(updateStoryStatus({ 
-          storyId, 
-          status: status as 'pending' | 'completed' | 'votingInProgress',
-          storyPoints 
-        }));
+        // If status is complete and we have votes, update the votes state
+        if (status === 'complete' && storyVotes && Array.isArray(storyVotes)) {
+          const votesMap: VoteMap = {};
+          storyVotes.forEach(({ participantId, vote }) => {
+            votesMap[participantId] = vote;
+            
+            // Update participant status in Redux store
+            dispatch(updateParticipant({
+              participantId,
+              status: 'voted',
+              vote: vote
+            }));
+          });
+          
+          // Calculate and store the final estimate
+          const results = getVotingResults(votesMap);
+          const finalEstimate = results.mode;
+          
+          // Update the story status in Redux store with final estimate and votes
+          dispatch(updateStoryStatus({ 
+            storyId, 
+            status: status as 'pending' | 'completed' | 'complete' | 'votingInProgress',
+            storyPoints,
+            finalEstimate: finalEstimate,
+            votes: storyVotes
+          }));
+          
+          // Update local votes state
+          setVotes(votesMap);
+          console.log('Updated votes from storyStatusUpdated:', votesMap);
+          console.log('Calculated and stored final estimate:', finalEstimate);
+        } else {
+          // For other statuses, update without final estimate
+          dispatch(updateStoryStatus({ 
+            storyId, 
+            status: status as 'pending' | 'completed' | 'complete' | 'votingInProgress',
+            storyPoints 
+          }));
+        }
         
         // Find the story index that matches the storyId from current roomData
         // We need to use a callback to get the latest roomData state
@@ -225,7 +275,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
               setCardsRevealed(false);
               setVotes({});
               setSelectedEstimate(null);
-            } else if (status === 'completed') {
+            } else if (status === 'completed' || status === 'complete') {
               // Story voting is completed
               setVotingInProgress(false);
               setShowResults(true);
@@ -242,6 +292,37 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
             console.warn('Story with ID not found in current room data:', storyId);
           }
         }
+      } else if (lastMessage.event === 'voteUpdated' && lastMessage.body) {
+        // Handle vote updates in real-time
+        const { participantId: votedParticipantId, vote, storyId } = lastMessage.body;
+        console.log('Vote updated:', lastMessage.body);
+        
+        // Update the participant status to "voted" in Redux store
+        dispatch(updateParticipant({
+          participantId: votedParticipantId,
+          status: 'voted',
+          vote: vote
+        }));
+        
+        // Only update local votes state if this vote is for the current story
+        const currentApiStory = roomData?.stories[currentStoryIndex];
+        if (currentApiStory && storyId === currentApiStory.storyId) {
+          // Update the votes state with the new vote
+          setVotes(prev => ({
+            ...prev,
+            [votedParticipantId]: vote
+          }));
+          
+          // If this is the current participant's vote, update selectedEstimate
+          if (votedParticipantId === participantId) {
+            setSelectedEstimate(vote);
+            console.log('Updated current participant selected estimate:', vote);
+          }
+          
+          console.log('Updated votes for current story:', { [votedParticipantId]: vote });
+        } else {
+          console.log('Vote received for different story, not updating local votes state');
+        }
       }
     }
   }, [lastMessage, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -249,6 +330,57 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   useEffect(() => {
     if (roomData && participantId && participantName) {
       console.log('Room data loaded from API:', roomData);
+      
+      // Set the current story index based on currentSelectedStory from API
+      if (roomData.stories && roomData.stories.length > 0 && !initialStoryIndexSet.current) {
+        let targetStoryIndex = 0; // Default to first story
+        
+        if (roomData.currentSelectedStory) {
+          // Find the index of the story that matches currentSelectedStory
+          const foundIndex = roomData.stories.findIndex(story => story.storyId === roomData.currentSelectedStory);
+          if (foundIndex !== -1) {
+            targetStoryIndex = foundIndex;
+            console.log(`Setting story index to ${targetStoryIndex} based on currentSelectedStory: ${roomData.currentSelectedStory}`);
+          } else {
+            console.log(`currentSelectedStory ${roomData.currentSelectedStory} not found, defaulting to first story`);
+          }
+        } else {
+          console.log('No currentSelectedStory specified, defaulting to first story');
+        }
+        
+        // Set the story index and mark as set
+        setCurrentStoryIndex(targetStoryIndex);
+        initialStoryIndexSet.current = true;
+        console.log(`Initial story index set to: ${targetStoryIndex}`);
+      }
+      
+      // Calculate and store final estimates for all completed stories that have votes
+      if (roomData.stories && roomData.stories.length > 0) {
+        roomData.stories.forEach((apiStory) => {
+          if ((apiStory.status === 'complete' || apiStory.status === 'completed') && apiStory.votes && Array.isArray(apiStory.votes) && apiStory.votes.length > 0) {
+            // Calculate final estimate from votes
+            const storyVotes: VoteMap = {};
+            apiStory.votes.forEach(({ participantId: voteParticipantId, vote }) => {
+              storyVotes[voteParticipantId] = vote;
+            });
+            
+            const results = getVotingResults(storyVotes);
+            const finalEstimate = results.mode;
+            
+            // Update the story in Redux store with the calculated final estimate and votes
+            dispatch(updateStoryStatus({
+              storyId: apiStory.storyId,
+              status: apiStory.status,
+              finalEstimate: finalEstimate,
+              votes: apiStory.votes
+            }));
+            
+            console.log(`Calculated final estimate for story ${apiStory.storyId}: ${finalEstimate}`);
+          }
+        });
+        
+        // Note: Vote loading for current story is handled in the separate useEffect that watches currentStoryIndex
+      }
       
       // Check if current participant exists in the room's participant list
       const currentParticipantExists = roomData.participants.some(
@@ -278,7 +410,53 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         console.log('Current participant already exists in room data');
       }
     }
-  }, [roomData, participantId, participantName, isConnected, sendMessage, roomId]);
+  }, [roomData, participantId, participantName, isConnected, sendMessage, roomId, dispatch]);
+
+  // Handle vote updates when switching between stories
+  useEffect(() => {
+    if (roomData?.stories && roomData.stories.length > 0) {
+      const currentApiStory = roomData.stories[currentStoryIndex];
+      
+      if (currentApiStory && (currentApiStory.status === 'complete' || currentApiStory.status === 'completed') && currentApiStory.votes && Array.isArray(currentApiStory.votes)) {
+        // Load votes for the current story
+        const currentStoryVotes: VoteMap = {};
+        
+        currentApiStory.votes.forEach(({ participantId: voteParticipantId, vote }) => {
+          currentStoryVotes[voteParticipantId] = vote;
+        });
+        
+        setVotes(currentStoryVotes);
+        setShowResults(true);
+        setCardsRevealed(true);
+        
+        // Update selected estimate if current participant has voted
+        if (participantId && currentStoryVotes[participantId]) {
+          setSelectedEstimate(currentStoryVotes[participantId]);
+        } else {
+          setSelectedEstimate(null);
+        }
+        
+        console.log('Switched to completed story, loaded votes:', currentStoryVotes);
+      } else {
+        // For non-complete stories, only clear votes if story is pending
+        // Keep votes for votingInProgress stories
+        if (currentApiStory?.status === 'pending') {
+          setVotes({});
+          setSelectedEstimate(null);
+          setShowResults(false);
+          setCardsRevealed(false);
+          setVotingInProgress(false);
+          console.log('Switched to pending story, cleared votes');
+        } else if (currentApiStory?.status === 'votingInProgress') {
+          // Keep existing votes for voting in progress stories
+          setShowResults(false);
+          setCardsRevealed(false);
+          setVotingInProgress(true);
+          console.log('Switched to voting in progress story, keeping existing votes');
+        }
+      }
+    }
+  }, [currentStoryIndex, roomData, participantId]);
 
   // Define handleLeaveRoom with useCallback to prevent unnecessary re-renders
   const handleLeaveRoom = useCallback(() => {
@@ -351,30 +529,92 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   };
 
   const handleVote = (estimate: number | string) => {
-    setSelectedEstimate(estimate);
-    // In a real app, you'd send this to the server
-    // For now, just store locally
-    setVotes(prev => ({
-      ...prev,
-      [1]: estimate // Using participant ID 1 as example
-    }));
+    // Send participantVoted message via WebSocket
+    const currentApiStory = roomData?.stories[currentStoryIndex];
+    
+    if (currentApiStory && participantId && sendMessage) {
+      const participantVotedMessage = {
+        action: 'participantVoted',
+        body: {
+          roomId: roomId,
+          storyId: currentApiStory.storyId,
+          participantId: participantId,
+          vote: String(estimate) // Ensure vote is always sent as a string
+        }
+      };
+      
+      console.log('Sending participantVoted message:', JSON.stringify(participantVotedMessage));
+      sendMessage(participantVotedMessage);
+      
+      // Update local state for immediate UI feedback
+      setSelectedEstimate(estimate);
+      setVotes(prev => ({
+        ...prev,
+        [participantId]: String(estimate)
+      }));
+      
+      console.log('Updated local vote for immediate feedback:', { participantId, vote: String(estimate) });
+    } else {
+      console.warn('Cannot send vote: missing story data, participant ID, or WebSocket connection');
+    }
   };
 
   const handleShowVotes = () => {
+    // Get the current story ID from the original API data
+    const currentApiStory = roomData?.stories[currentStoryIndex];
+    
+    if (currentApiStory && sendMessage) {
+      // Send startVoting message with status "complete" via WebSocket
+      const showVotesMessage = {
+        action: 'startVoting',
+        body: {
+          roomId: roomId,
+          storyId: currentApiStory.storyId,
+          status: 'complete'
+        }
+      };
+      
+      console.log('Sending show votes message:', JSON.stringify(showVotesMessage));
+      sendMessage(showVotesMessage);
+    } else {
+      console.warn('Cannot show votes: missing story data or WebSocket connection');
+    }
+    
+    // Update local state for immediate UI feedback
     setShowResults(true);
     setCardsRevealed(true);
     setVotingInProgress(false);
   };
 
   const handleNextStory = () => {
+    // Before moving to the next story, save the final estimate and votes for the current story if it has votes
+    const currentApiStory = roomData?.stories[currentStoryIndex];
+    if (currentApiStory && (currentApiStory.status === 'completed' || currentApiStory.status === 'complete') && 
+        Object.keys(votes).length > 0) {
+      
+      const results = getVotingResults(votes);
+      const finalEstimate = results.mode;
+      
+      // Convert current votes to the format expected by the API
+      const votesArray = Object.entries(votes).map(([participantId, vote]) => ({
+        participantId,
+        vote: String(vote)
+      }));
+      
+      // Update the story in Redux store with the final estimate and votes
+      dispatch(updateStoryStatus({
+        storyId: currentApiStory.storyId,
+        status: currentApiStory.status,
+        finalEstimate: finalEstimate,
+        votes: votesArray
+      }));
+      
+      console.log(`Saved final estimate and votes for story ${currentApiStory.storyId}: ${finalEstimate}`, votesArray);
+    }
+
     if (currentStoryIndex < stories.length - 1) {
       setCurrentStoryIndex(prev => prev + 1);
-      // Reset voting state for next story
-      setVotes({});
-      setVotingInProgress(false);
-      setShowResults(false);
-      setCardsRevealed(false);
-      setSelectedEstimate(null);
+      // Note: State updates are handled by useEffect that watches currentStoryIndex
     }
   };
 
@@ -577,8 +817,14 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
             setCurrentStoryIndex={setCurrentStoryIndex}
             setAddStoryDialog={handleSetAddStoryDialog}
             isRoomCreator={isRoomCreator}
+            votes={votes}
+            showResults={showResults || (currentStory?.status === 'complete' || currentStory?.status === 'completed')}
           />
-          <ParticipantsList participants={participants} votes={votes} showResults={showResults} />
+          <ParticipantsList 
+            participants={participants} 
+            votes={votes} 
+            showResults={showResults || (currentStory?.status === 'complete' || currentStory?.status === 'completed')} 
+          />
         </Box>
 
         {/* Main Content */}
@@ -589,56 +835,93 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
             <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
               {isRoomCreator && (
                 <>
-                  {!votingInProgress ? (
+                  {/* Left side buttons */}
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    {!votingInProgress ? (
+                      <Tooltip 
+                        title={
+                          (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
+                            ? "Story is already completed" 
+                            : ""
+                        }
+                      >
+                        <span>
+                          <Button
+                            variant="contained"
+                            startIcon={<PlayIcon />}
+                            onClick={handleStartVoting}
+                            disabled={!stories || stories.length === 0 || (currentStory?.status === 'completed' || currentStory?.status === 'complete')}
+                          >
+                            Start Voting
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        disabled
+                      >
+                        Voting in progress...
+                      </Button>
+                    )}
+                    <Tooltip 
+                      title={
+                        (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
+                          ? "Cannot skip completed story" 
+                          : ""
+                      }
+                    >
+                      <span>
+                        <Button
+                          variant="outlined"
+                          startIcon={<SkipIcon />}
+                          onClick={handleSkipStory}
+                          disabled={currentStory?.status === 'completed' || currentStory?.status === 'complete'}
+                        >
+                          Skip
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </Box>
+                  
+                  {/* Right side buttons */}
+                  <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
+                    <Tooltip 
+                      title={
+                        (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
+                          ? "Votes are already shown for completed story" 
+                          : Object.keys(votes).length === 0 ? "No votes to show" : ""
+                      }
+                    >
+                      <span>
+                        <Button
+                          variant="outlined"
+                          startIcon={<EyeIcon />}
+                          onClick={handleShowVotes}
+                          disabled={Object.keys(votes).length === 0 || (currentStory?.status === 'completed' || currentStory?.status === 'complete')}
+                        >
+                          Show Votes
+                        </Button>
+                      </span>
+                    </Tooltip>
                     <Button
                       variant="contained"
-                      startIcon={<PlayIcon />}
-                      onClick={handleStartVoting}
-                      disabled={!stories || stories.length === 0}
+                      color="primary"
+                      onClick={handleNextStory}
+                      endIcon={<ChevronRightIcon />}
+                      disabled={!cardsRevealed && !(currentStory?.status === 'completed' || currentStory?.status === 'complete')}
                     >
-                      Start Voting
+                      Next Story
                     </Button>
-                  ) : (
-                    <Button
-                      variant="contained"
-                      disabled
-                    >
-                      Voting in progress...
-                    </Button>
-                  )}
-                  <Button
-                    variant="outlined"
-                    startIcon={<SkipIcon />}
-                    onClick={handleSkipStory}
-                  >
-                    Skip
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<EyeIcon />}
-                    onClick={handleShowVotes}
-                    sx={{ ml: 'auto' }}
-                    disabled={Object.keys(votes).length === 0}
-                  >
-                    Show Votes
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleNextStory}
-                    endIcon={<ChevronRightIcon />}
-                    disabled={!cardsRevealed}
-                  >
-                    Next Story
-                  </Button>
+                  </Box>
                 </>
               )}
             </Box>
 
             {/* Show voting area based on current story status */}
-            {currentStory && (currentStory.status === 'votingInProgress' || currentStory.status === 'completed') && (
+            {currentStory && (currentStory.status === 'votingInProgress' || currentStory.status === 'completed' || currentStory.status === 'complete') && (
               <VotingArea
-                showResults={currentStory.status === 'completed' || showResults}
+                showResults={currentStory.status === 'completed' || currentStory.status === 'complete' || showResults}
                 selectedEstimate={selectedEstimate}
                 handleVote={currentStory.status === 'votingInProgress' ? handleVote : undefined}
               />

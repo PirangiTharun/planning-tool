@@ -11,7 +11,12 @@ export interface ApiStory {
   storyId: string;
   storyPoints: string;
   description: string;
-  status: 'pending' | 'completed' | 'votingInProgress';
+  status: 'pending' | 'completed' | 'complete' | 'votingInProgress';
+  finalEstimate?: string; // Store the calculated final estimate for completed stories
+  votes?: Array<{
+    participantId: string;
+    vote: string;
+  }>;
 }
 
 export interface ApiParticipant {
@@ -29,6 +34,7 @@ export interface RoomApiResponse {
   id: string;
   name: string;
   createdBy: string;
+  currentSelectedStory?: string; // ID of the currently selected story
 }
 
 // Existing types (keeping for compatibility)
@@ -36,17 +42,23 @@ export interface Story {
   id: number;
   title: string;
   description: string;
-  status: 'completed' | 'pending' | 'votingInProgress';
+  status: 'completed' | 'complete' | 'pending' | 'votingInProgress';
   estimate: number | null;
+  finalEstimate?: string; // Store the calculated final estimate for completed stories
+  votes?: Array<{
+    participantId: string;
+    vote: string;
+  }>; // Store votes for completed stories
 }
 
 export interface Participant {
   id: number;
+  participantId: string; // Add the actual participantId from API
   name: string;
   initials: string;
   voted: boolean;
 }
 
 export interface VoteMap {
-  [participantId: number]: number | string;
+  [participantId: string]: number | string; // Change to string keys to match participantId
 }

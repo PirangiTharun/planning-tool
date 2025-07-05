@@ -5,8 +5,11 @@ import {
   Box,
   Divider,
   Chip,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Info as InfoIcon } from '@mui/icons-material';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
 // import the correct type from '../../types', or define VotingResult here if missing
 // Example: If VotingResult is not exported, define it locally as a temporary fix:
 export interface VotingResult {
@@ -34,7 +37,7 @@ const Results: FC<ResultsProps> = ({ results }) => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="estimate" />
               <YAxis allowDecimals={false} />
-              <Tooltip />
+              <ChartTooltip />
               <Bar dataKey="votes" fill="#0284c7" barSize={30} />
             </BarChart>
           </ResponsiveContainer>
@@ -44,7 +47,7 @@ const Results: FC<ResultsProps> = ({ results }) => {
           <Box sx={{ '& > div': { display: 'flex', justifyContent: 'space-between', mb: 1 } }}>
             <div>
               <Typography>Average</Typography>
-              <Typography fontWeight="bold">{Math.round(results.average)}</Typography>
+              <Typography fontWeight="bold">{results.average}</Typography>
             </div>
             <div>
               <Typography>Median</Typography>
@@ -59,8 +62,15 @@ const Results: FC<ResultsProps> = ({ results }) => {
               <Typography fontWeight="bold">{results.range}</Typography>
             </div>
             <div>
-              <Typography>Consensus</Typography>
-              <Typography fontWeight="bold">{results.consensus} (60%)</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography>Consensus</Typography>
+                <Tooltip title="Consensus measures how much the team agrees on the estimate. High consensus (80%+) means most people voted for the same value. Medium consensus (60-79%) shows reasonable agreement. Low consensus (<60%) indicates diverse opinions and may need discussion.">
+                  <IconButton size="small" sx={{ p: 0.25 }}>
+                    <InfoIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography fontWeight="bold">{results.consensus}</Typography>
             </div>
           </Box>
           <Divider sx={{ my: 2 }} />

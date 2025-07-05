@@ -72,13 +72,27 @@ const roomSlice = createSlice({
         state.data.stories.push(action.payload);
       }
     },
-    updateStoryStatus: (state, action: PayloadAction<{ storyId: string; status: 'pending' | 'completed' | 'votingInProgress'; storyPoints?: string }>) => {
+    updateStoryStatus: (state, action: PayloadAction<{ 
+      storyId: string; 
+      status: 'pending' | 'completed' | 'complete' | 'votingInProgress'; 
+      storyPoints?: string; 
+      finalEstimate?: string;
+      votes?: Array<{ participantId: string; vote: string; }>;
+    }>) => {
       if (state.data) {
         const storyIndex = state.data.stories.findIndex(story => story.storyId === action.payload.storyId);
         if (storyIndex !== -1) {
           state.data.stories[storyIndex].status = action.payload.status;
           if (action.payload.storyPoints !== undefined) {
             state.data.stories[storyIndex].storyPoints = action.payload.storyPoints;
+          }
+          if (action.payload.finalEstimate !== undefined) {
+            // Store the final estimate for completed stories
+            state.data.stories[storyIndex].finalEstimate = action.payload.finalEstimate;
+          }
+          if (action.payload.votes !== undefined) {
+            // Store the votes for completed stories
+            state.data.stories[storyIndex].votes = action.payload.votes;
           }
           console.log('Story status updated in Redux store:', action.payload);
         }
@@ -107,6 +121,26 @@ const roomSlice = createSlice({
         }
       }
     },
+    updateParticipant: (state, action: PayloadAction<{ participantId: string; status?: 'notVoted' | 'voted'; vote?: string | number }>) => {
+      if (state.data) {
+        const participantIndex = state.data.participants.findIndex(
+          p => p.participantId === action.payload.participantId
+        );
+        
+        if (participantIndex !== -1) {
+          // Update participant status and/or vote
+          if (action.payload.status !== undefined) {
+            state.data.participants[participantIndex].status = action.payload.status;
+          }
+          if (action.payload.vote !== undefined) {
+            state.data.participants[participantIndex].vote = String(action.payload.vote);
+          }
+          console.log('Participant updated in Redux store:', state.data.participants[participantIndex]);
+        } else {
+          console.warn('Participant not found for update:', action.payload.participantId);
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -126,5 +160,5 @@ const roomSlice = createSlice({
   },
 });
 
-export const { clearRoom, updateRoomData, addStory, updateStoryStatus, addParticipant } = roomSlice.actions;
+export const { clearRoom, updateRoomData, addStory, updateStoryStatus, addParticipant, updateParticipant } = roomSlice.actions;
 export default roomSlice.reducer;

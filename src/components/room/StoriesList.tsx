@@ -9,7 +9,8 @@ import {
   Box,
   Button,
 } from '@mui/material';
-import type { Story } from '../../types';
+import type { Story, VoteMap } from '../../types';
+import { getVotingResults } from '../../utils/results';
 
 interface StoriesListProps {
   stories: Story[];
@@ -17,9 +18,39 @@ interface StoriesListProps {
   setCurrentStoryIndex: (index: number) => void;
   setAddStoryDialog: (open: boolean) => void;
   isRoomCreator?: boolean;
+  votes?: VoteMap;
+  showResults?: boolean;
 }
 
-const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurrentStoryIndex, setAddStoryDialog, isRoomCreator = false }) => {
+const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurrentStoryIndex, setAddStoryDialog, isRoomCreator = false, votes = {}, showResults = false }) => {
+  
+  // Calculate final estimate for completed stories
+  const getFinalEstimate = (story: Story, index: number) => {
+    // For completed stories, first check if we have a stored final estimate
+    if ((story.status === 'completed' || story.status === 'complete') && story.finalEstimate) {
+      return `${story.finalEstimate} points`;
+    }
+    
+    // For completed stories with stored votes, calculate the final estimate from votes
+    if ((story.status === 'completed' || story.status === 'complete') && story.votes && Array.isArray(story.votes) && story.votes.length > 0) {
+      const storyVotes: VoteMap = {};
+      story.votes.forEach(({ participantId, vote }) => {
+        storyVotes[participantId] = vote;
+      });
+      const results = getVotingResults(storyVotes);
+      return `${results.mode} points`;
+    }
+    
+    // For the current story with votes, calculate the final estimate dynamically
+    if ((story.status === 'completed' || story.status === 'complete') && showResults && index === currentStoryIndex && Object.keys(votes).length > 0) {
+      const results = getVotingResults(votes);
+      return `${results.mode} points`;
+    }
+    
+    // Fall back to the original estimate or "No estimate"
+    return story.estimate !== null ? `${story.estimate} points` : 'No estimate';
+  };
+
   return (
     <Paper sx={{ p: 2, mb: 2, maxHeight: '43vh', overflowY: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -50,7 +81,7 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
                 backgroundColor:
                   index === currentStoryIndex
                     ? 'primary.light'
-                    : story.status === 'completed'
+                    : (story.status === 'completed' || story.status === 'complete')
                     ? 'success.light'
                     : 'transparent',
                 color: 'inherit',
@@ -58,7 +89,7 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
                 borderColor:
                   index === currentStoryIndex
                     ? 'primary.main'
-                    : story.status === 'completed'
+                    : (story.status === 'completed' || story.status === 'complete')
                     ? 'success.main'
                     : 'grey.300',
                 cursor: isRoomCreator ? 'pointer' : 'default',
@@ -66,7 +97,7 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
                   backgroundColor:
                     index === currentStoryIndex
                       ? 'primary.light'
-                      : story.status === 'completed'
+                      : (story.status === 'completed' || story.status === 'complete')
                       ? 'success.dark'
                       : 'action.hover',
                 },
@@ -75,8 +106,8 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
               <ListItemText
                 primary={story.title}
                 secondary={
-                  story.status === 'completed' 
-                    ? `${story.estimate} points` 
+                  (story.status === 'completed' || story.status === 'complete')
+                    ? getFinalEstimate(story, index)
                     : story.status === 'votingInProgress'
                     ? 'Voting in progress...'
                     : story.status

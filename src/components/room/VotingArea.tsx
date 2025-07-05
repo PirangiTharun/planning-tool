@@ -35,11 +35,11 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
             key={num}
             sx={{
               cursor: handleVote && !showResults ? 'pointer' : 'default',
-              backgroundColor: selectedEstimate === num ? 'primary.main' : 'background.paper',
-              color: selectedEstimate === num ? 'primary.contrastText' : 'text.primary',
+              backgroundColor: String(selectedEstimate) === String(num) ? 'primary.main' : 'background.paper',
+              color: String(selectedEstimate) === String(num) ? 'primary.contrastText' : 'text.primary',
               '&:hover': {
                 backgroundColor: handleVote && !showResults 
-                  ? (selectedEstimate === num ? 'primary.dark' : 'action.hover')
+                  ? (String(selectedEstimate) === String(num) ? 'primary.dark' : 'action.hover')
                   : undefined
               },
               transition: 'all 0.2s',
@@ -57,11 +57,11 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
         <Card
           sx={{
             cursor: handleVote && !showResults ? 'pointer' : 'default',
-            backgroundColor: selectedEstimate === '?' ? 'primary.main' : 'background.paper',
-            color: selectedEstimate === '?' ? 'primary.contrastText' : 'text.primary',
+            backgroundColor: String(selectedEstimate) === '?' ? 'primary.main' : 'background.paper',
+            color: String(selectedEstimate) === '?' ? 'primary.contrastText' : 'text.primary',
             '&:hover': {
               backgroundColor: handleVote && !showResults 
-                ? (selectedEstimate === '?' ? 'primary.dark' : 'action.hover')
+                ? (String(selectedEstimate) === '?' ? 'primary.dark' : 'action.hover')
                 : undefined
             },
             transition: 'all 0.2s',

@@ -14,19 +14,19 @@ export const initialStories: Story[] = [
 ];
 
 export const initialParticipants: Participant[] = [
-  { id: 1, name: 'John Doe', initials: 'JD', voted: false },
-  { id: 2, name: 'Alice Smith', initials: 'AS', voted: false },
-  { id: 3, name: 'Robert Johnson', initials: 'RJ', voted: false },
-  { id: 4, name: 'Emma Wilson', initials: 'EW', voted: false },
-  { id: 5, name: 'Mike Brown', initials: 'MB', voted: false },
-  { id: 6, name: 'Sophia Lee', initials: 'SL', voted: false },
-  { id: 7, name: 'David Kim', initials: 'DK', voted: false },
-  { id: 8, name: 'Olivia Martinez', initials: 'OM', voted: false },
-  { id: 9, name: 'James Anderson', initials: 'JA', voted: false },
-  { id: 10, name: 'Isabella Thomas', initials: 'IT', voted: false },
-  { id: 11, name: 'William Harris', initials: 'WH', voted: false },
-  { id: 12, name: 'Mia Clark', initials: 'MC', voted: false },
-  { id: 13, name: 'Benjamin Lewis', initials: 'BL', voted: false },
-  { id: 14, name: 'Charlotte Walker', initials: 'CW', voted: false },
-  { id: 15, name: 'Lucas Young', initials: 'LY', voted: false }
+  { id: 1, participantId: 'mock-participant-1', name: 'John Doe', initials: 'JD', voted: false },
+  { id: 2, participantId: 'mock-participant-2', name: 'Alice Smith', initials: 'AS', voted: false },
+  { id: 3, participantId: 'mock-participant-3', name: 'Robert Johnson', initials: 'RJ', voted: false },
+  { id: 4, participantId: 'mock-participant-4', name: 'Emma Wilson', initials: 'EW', voted: false },
+  { id: 5, participantId: 'mock-participant-5', name: 'Mike Brown', initials: 'MB', voted: false },
+  { id: 6, participantId: 'mock-participant-6', name: 'Sophia Lee', initials: 'SL', voted: false },
+  { id: 7, participantId: 'mock-participant-7', name: 'David Kim', initials: 'DK', voted: false },
+  { id: 8, participantId: 'mock-participant-8', name: 'Olivia Martinez', initials: 'OM', voted: false },
+  { id: 9, participantId: 'mock-participant-9', name: 'James Anderson', initials: 'JA', voted: false },
+  { id: 10, participantId: 'mock-participant-10', name: 'Isabella Thomas', initials: 'IT', voted: false },
+  { id: 11, participantId: 'mock-participant-11', name: 'William Harris', initials: 'WH', voted: false },
+  { id: 12, participantId: 'mock-participant-12', name: 'Mia Clark', initials: 'MC', voted: false },
+  { id: 13, participantId: 'mock-participant-13', name: 'Benjamin Lewis', initials: 'BL', voted: false },
+  { id: 14, participantId: 'mock-participant-14', name: 'Charlotte Walker', initials: 'CW', voted: false },
+  { id: 15, participantId: 'mock-participant-15', name: 'Lucas Young', initials: 'LY', voted: false }
 ];
