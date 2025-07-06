@@ -27,8 +27,8 @@ import EnterNameDialog from './EnterNameDialog';
 import { useSocket } from '../hooks/useSocket';
 import { useRoomData } from '../hooks/useRoomData';
 import { transformRoomApiResponse } from '../utils/dataTransformers';
-import { useAppDispatch } from '../store/hooks';
-import { addStory, addParticipant, updateStoryStatus, updateParticipant } from '../store/slices/roomSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { addStory, addParticipant, updateStoryStatus, updateParticipant, createRoom, clearPendingRoomData } from '../store/slices/roomSlice';
 
 interface RoomPageProps {
   roomId: string;
@@ -53,6 +53,9 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   const { roomData, loading, error } = useRoomData(roomId);
   const dispatch = useAppDispatch();
   
+  // Get pending room data from Redux
+  const { pendingRoomData } = useAppSelector((state) => state.room);
+  
   // Local state for room functionality
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [votes, setVotes] = useState<VoteMap>({});
@@ -66,8 +69,15 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   const [newStoryTitle, setNewStoryTitle] = useState('');
   const [newStoryDescription, setNewStoryDescription] = useState('');
 
-  // Transform API data to local format
-  const transformedData = roomData ? transformRoomApiResponse(roomData) : null;
+  // Transform API data to local format with error handling
+  let transformedData = null;
+  try {
+    transformedData = roomData ? transformRoomApiResponse(roomData) : null;
+  } catch (error) {
+    console.error('Error transforming room data:', error, 'Room data:', roomData);
+    transformedData = null;
+  }
+  
   const apiStories: Story[] = transformedData?.stories || [];
   const stories: Story[] = apiStories; // Only use API stories, no local stories
   const participants: Participant[] = transformedData?.participants || [];
@@ -91,7 +101,6 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     
     const storedId = localStorage.getItem('participantId');
     const storedName = localStorage.getItem('participantName');
-    const pendingRoomCreation = localStorage.getItem('pendingRoomCreation');
     
     if (storedId && storedName) {
       // Participant exists in localStorage - this is an existing participant
@@ -100,27 +109,20 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       setIsParticipantReady(true);
       setIsNewParticipant(false); // Mark as existing participant
       
-      // If there's a pending room creation, complete it now
-      if (pendingRoomCreation) {
-        const { roomId: pendingRoomId, roomName: pendingRoomName } = JSON.parse(pendingRoomCreation);
-        localStorage.removeItem('pendingRoomCreation');
+      // If there's pending room data in Redux, complete room creation
+      if (pendingRoomData && pendingRoomData.roomId === roomId) {
+        const apiPayload = {
+          ...pendingRoomData,
+          createdBy: storedId
+        };
         
-        // Call the API directly to complete room creation
-        import('../store/api/roomApi').then(({ createRoom, fetchRoomData }) => {
-          const apiPayload = {
-            roomId: pendingRoomId,
-            roomName: pendingRoomName,
-            createdBy: storedId
-          };
-          
-          createRoom(apiPayload).then(() => {
-            // Only call getRoomDetails if participantId exists
-            if (storedId) {
-              return fetchRoomData(pendingRoomId);
-            }
-          }).catch((error) => {
-            console.error('Error completing room creation:', error);
-          });
+        // Create room using Redux and then clear pending data
+        dispatch(createRoom(apiPayload)).then(() => {
+          dispatch(clearPendingRoomData());
+          console.log('Room creation completed successfully');
+        }).catch((error) => {
+          console.error('Error completing room creation:', error);
+          dispatch(clearPendingRoomData()); // Clear even on error to prevent retry loops
         });
       }
     } else {
@@ -128,7 +130,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       setShowEnterNameDialog(true);
       setIsNewParticipant(true); // Will be a new participant
     }
-  }, []); // Only run once on mount
+  }, [dispatch, pendingRoomData, roomId]); // Include dependencies
 
   // Handle WebSocket connection and participant data sending
   useEffect(() => {
@@ -305,7 +307,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         }));
         
         // Only update local votes state if this vote is for the current story
-        const currentApiStory = roomData?.stories[currentStoryIndex];
+        const currentApiStory = roomData?.stories?.[currentStoryIndex];
         if (currentApiStory && storyId === currentApiStory.storyId) {
           // Update the votes state with the new vote
           setVotes(prev => ({
@@ -398,7 +400,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       }
       
       // Check if current participant exists in the room's participant list
-      const currentParticipantExists = roomData.participants.some(
+      const currentParticipantExists = roomData.participants?.some(
         participant => participant.participantId === participantId
       );
       
@@ -511,7 +513,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
   // Event handlers
   const handleStartVoting = () => {
     // Get the current story ID from the original API data
-    const currentApiStory = roomData?.stories[currentStoryIndex];
+    const currentApiStory = roomData?.stories?.[currentStoryIndex];
     
     if (!roomData?.stories || roomData.stories.length === 0) {
       console.warn('Cannot start voting: no stories available');
@@ -545,7 +547,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
   const handleVote = (estimate: number | string) => {
     // Send participantVoted message via WebSocket
-    const currentApiStory = roomData?.stories[currentStoryIndex];
+    const currentApiStory = roomData?.stories?.[currentStoryIndex];
     
     if (currentApiStory && participantId && sendMessage) {
       const participantVotedMessage = {
@@ -576,7 +578,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
   const handleShowVotes = () => {
     // Get the current story ID from the original API data
-    const currentApiStory = roomData?.stories[currentStoryIndex];
+    const currentApiStory = roomData?.stories?.[currentStoryIndex];
     
     if (currentApiStory && sendMessage) {
       // Send startVoting message with status "complete" via WebSocket
@@ -603,7 +605,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
   const handleNextStory = () => {
     // Before moving to the next story, save the final estimate and votes for the current story if it has votes
-    const currentApiStory = roomData?.stories[currentStoryIndex];
+    const currentApiStory = roomData?.stories?.[currentStoryIndex];
     if (currentApiStory && (currentApiStory.status === 'completed' || currentApiStory.status === 'complete') && 
         Object.keys(votes).length > 0) {
       
@@ -629,7 +631,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
     if (currentStoryIndex < stories.length - 1) {
       const nextStoryIndex = currentStoryIndex + 1;
-      const nextStory = roomData?.stories[nextStoryIndex];
+      const nextStory = roomData?.stories?.[nextStoryIndex];
       
       if (nextStory && sendMessage) {
         // Send nextStory WebSocket message
@@ -652,7 +654,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
 
   const handleSkipStory = () => {
     // Get the current story ID from the original API data
-    const currentApiStory = roomData?.stories[currentStoryIndex];
+    const currentApiStory = roomData?.stories?.[currentStoryIndex];
     
     if (!roomData?.stories || roomData.stories.length === 0) {
       console.warn('Cannot skip story: no stories available');
@@ -663,7 +665,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       // Move to the next story and send nextStory message
       if (currentStoryIndex < stories.length - 1) {
         const nextStoryIndex = currentStoryIndex + 1;
-        const nextStory = roomData?.stories[nextStoryIndex];
+        const nextStory = roomData?.stories?.[nextStoryIndex];
         
         if (nextStory) {
           // Send nextStory WebSocket message
@@ -693,7 +695,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
       return;
     }
     
-    const selectedStory = roomData?.stories[newStoryIndex];
+    const selectedStory = roomData?.stories?.[newStoryIndex];
     
     if (selectedStory && sendMessage) {
       // Send nextStory WebSocket message
@@ -730,28 +732,20 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     setIsNewParticipant(true); // Mark as new participant since they just entered name
     setShowEnterNameDialog(false);
 
-    // Check if there's a pending room creation to complete
-    const pendingRoomCreation = localStorage.getItem('pendingRoomCreation');
-    if (pendingRoomCreation) {
-      const { roomId: pendingRoomId, roomName: pendingRoomName } = JSON.parse(pendingRoomCreation);
-      localStorage.removeItem('pendingRoomCreation');
+    // Check if there's pending room data in Redux to complete
+    if (pendingRoomData && pendingRoomData.roomId === roomId) {
+      const apiPayload = {
+        ...pendingRoomData,
+        createdBy: newParticipantId
+      };
       
-      // Call the API to complete room creation
-      import('../store/api/roomApi').then(({ createRoom, fetchRoomData }) => {
-        const apiPayload = {
-          roomId: pendingRoomId,
-          roomName: pendingRoomName,
-          createdBy: newParticipantId
-        };
-        
-        createRoom(apiPayload).then(() => {
-          // Only call getRoomDetails if participantId exists
-          if (newParticipantId) {
-            return fetchRoomData(pendingRoomId);
-          }
-        }).catch((error) => {
-          console.error('Error completing room creation:', error);
-        });
+      // Create room using Redux and then clear pending data
+      dispatch(createRoom(apiPayload)).then(() => {
+        dispatch(clearPendingRoomData());
+        console.log('Room creation completed successfully');
+      }).catch((error) => {
+        console.error('Error completing room creation:', error);
+        dispatch(clearPendingRoomData()); // Clear even on error to prevent retry loops
       });
     } else {
       // No pending room creation, but we still need to fetch room data

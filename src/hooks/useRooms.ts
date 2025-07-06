@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Room } from '../types';
 import { initialRooms } from '../data/mockData';
-import { createRoom, fetchRoomData } from '../store/api/roomApi';
+import { useAppDispatch } from '../store/hooks';
+import { createRoom as createRoomAction, setPendingRoomData } from '../store/slices/roomSlice';
 
 const generateRoomId = () => {
   // Generate a unique 8-character room ID
@@ -14,6 +15,7 @@ const generateRoomId = () => {
 };
 
 export const useRooms = () => {
+  const dispatch = useAppDispatch();
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [createRoomDialog, setCreateRoomDialog] = useState(false);
@@ -30,7 +32,7 @@ export const useRooms = () => {
     const participantId = localStorage.getItem('participantId');
     
     if (participantId) {
-      // Participant exists - call createRoom API immediately
+      // Participant exists - create room immediately using Redux
       try {
         setIsCreatingRoom(true);
         
@@ -40,12 +42,7 @@ export const useRooms = () => {
           createdBy: participantId
         };
         
-        await createRoom(apiPayload);
-        
-        // Call getRoomDetails to get the complete room data (only if participantId exists)
-        if (participantId) {
-          await fetchRoomData(roomId);
-        }
+        await dispatch(createRoomAction(apiPayload)).unwrap();
         
         // Update local room list
         const newRoom = {
@@ -81,7 +78,14 @@ export const useRooms = () => {
         setIsCreatingRoom(false);
       }
     } else {
-      // No participant - return room info so the caller can navigate and show name dialog
+      // No participant - set pending room data in Redux and return room info
+      const pendingData = {
+        roomId,
+        roomName,
+        createdBy: '' // Will be filled when participant enters name
+      };
+      
+      dispatch(setPendingRoomData(pendingData));
       setCreateRoomDialog(false);
       setNewRoomName('');
       return { roomId, roomName, needsParticipantInfo: true };
@@ -97,12 +101,7 @@ export const useRooms = () => {
         createdBy: participantId
       };
       
-      await createRoom(apiPayload);
-      
-      // Call getRoomDetails to get the complete room data (only if participantId exists)
-      if (participantId) {
-        await fetchRoomData(roomId);
-      }
+      await dispatch(createRoomAction(apiPayload)).unwrap();
       
       // Update local room list
       const newRoom = {

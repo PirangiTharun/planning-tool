@@ -180,16 +180,10 @@ const PlanningPokerApp = () => {
   const handleCreateRoomAndSwitchView = async () => {
     const result = await handleCreateRoom();
     if (result) {
-      const { roomId, roomName, needsParticipantInfo } = result;
+      const { roomId } = result;
       
-      if (needsParticipantInfo) {
-        // No participant info - navigate to room and let RoomPage handle the name dialog
-        localStorage.setItem('pendingRoomCreation', JSON.stringify({ roomId, roomName }));
-        navigate(`/room/${roomId}`);
-      } else {
-        // Participant exists - room was created successfully
-        navigate(`/room/${roomId}`);
-      }
+      // Navigate to room regardless - the Redux state will handle the pending room creation
+      navigate(`/room/${roomId}`);
     }
   };
 

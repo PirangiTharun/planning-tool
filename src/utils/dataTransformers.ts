@@ -26,11 +26,25 @@ export const transformApiParticipantToParticipant = (apiParticipant: ApiParticip
 };
 
 // Transform full API response to local data structures
-export const transformRoomApiResponse = (apiResponse: RoomApiResponse) => ({
-  stories: apiResponse.stories.map(transformApiStoryToStory),
-  participants: apiResponse.participants.map(transformApiParticipantToParticipant),
-  roomName: apiResponse.name,
-  totalParticipants: apiResponse.totalParticipants,
-  createdDate: apiResponse.createdDate,
-  roomId: apiResponse.id,
-});
+export const transformRoomApiResponse = (apiResponse: RoomApiResponse) => {
+  // Add null/undefined checks for the entire response
+  if (!apiResponse) {
+    return {
+      stories: [],
+      participants: [],
+      roomName: '',
+      totalParticipants: 0,
+      createdDate: '',
+      roomId: '',
+    };
+  }
+  
+  return {
+    stories: Array.isArray(apiResponse.stories) ? apiResponse.stories.map(transformApiStoryToStory) : [],
+    participants: Array.isArray(apiResponse.participants) ? apiResponse.participants.map(transformApiParticipantToParticipant) : [],
+    roomName: apiResponse.name || '',
+    totalParticipants: apiResponse.totalParticipants || 0,
+    createdDate: apiResponse.createdDate || '',
+    roomId: apiResponse.id || '',
+  };
+};

@@ -27,13 +27,13 @@ export interface ApiParticipant {
 }
 
 export interface RoomApiResponse {
-  totalParticipants: number;
-  createdDate: string;
-  stories: ApiStory[];
-  participants: ApiParticipant[];
+  totalParticipants?: number;
+  createdDate?: string;
+  stories?: ApiStory[];
+  participants?: ApiParticipant[];
   id: string;
   name: string;
-  createdBy: string;
+  createdBy?: string;
   currentSelectedStory?: string; // ID of the currently selected story
 }
 
