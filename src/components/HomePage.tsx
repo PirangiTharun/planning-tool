@@ -41,10 +41,10 @@ const HomePage: FC<HomePageProps> = ({ rooms, handleJoinRoom, handleJoinRoomById
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ mb: 2 }}>
-        Agile Estimation Made Easy
+        The Sprint Planner
       </Typography>
       <Typography variant="h6" align="center" color="textSecondary" sx={{ mb: 6 }}>
-        Simplify your planning sessions with our intuitive planning poker tool for agile teams.
+        Simplify your planning sessions with our intuitive sprint planning tool for agile teams.
       </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mb: 6 }}>

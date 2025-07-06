@@ -9,12 +9,13 @@ import {
   Alert,
   Tooltip,
 } from "@mui/material";
-import { Assignment as AssignmentIcon, Link as LinkIcon, ExitToApp as LeaveIcon } from "@mui/icons-material";
+import { Link as LinkIcon, ExitToApp as LeaveIcon } from "@mui/icons-material";
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useRooms } from "../hooks/useRooms";
 import HomePage from "./HomePage";
 import RoomPage from "./RoomPage";
 import CreateRoomDialog from "./CreateRoomDialog";
+import SprintPlannerIcon from "./SprintPlannerIcon";
 import type { Room } from "../types";
 
 const RoomWrapper = () => {
@@ -75,13 +76,13 @@ const AppLayout = () => {
       >
         <Toolbar>
           <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}>
-            <AssignmentIcon sx={{ color: "primary.main", mr: 1 }} />
+            <SprintPlannerIcon sx={{ color: "primary.main", mr: 1.5, fontSize: 32 }} />
             <Typography
               variant="h6"
               component="div"
               sx={{ color: "text.primary", fontWeight: "bold" }}
             >
-              PlanningPoker
+              The Sprint Planner
             </Typography>
           </Box>
           <Box>
