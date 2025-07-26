@@ -40,11 +40,50 @@ const CurrentStory: FC<CurrentStoryProps> = ({ currentStory, roomName, roomId })
 
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" gutterBottom>{roomName}</Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body2" color="text.secondary">
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' }, 
+        mb: 2 
+      }}>
+        <Typography 
+          variant="h5" 
+          gutterBottom 
+          sx={{ 
+            fontSize: { xs: '1.2rem', sm: '1.5rem' },
+            mb: { xs: 1, sm: 0 },
+            wordBreak: 'break-word'
+          }}
+        >
+          {roomName}
+        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          alignSelf: { xs: 'flex-end', sm: 'center' },
+          mt: { xs: 1, sm: 0 }
+        }}>
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{
+              fontSize: { xs: '0.7rem', sm: '0.875rem' },
+              display: { xs: 'none', sm: 'block' }
+            }}
+          >
             Room ID: {roomId}
+          </Typography>
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{
+              fontSize: { xs: '0.7rem', sm: '0.875rem' },
+              display: { xs: 'block', sm: 'none' }
+            }}
+          >
+            ID: {roomId.slice(0, 8)}...
           </Typography>
           <Tooltip title={copied ? 'Room ID copied!' : 'Copy Room ID'}>
             <IconButton
@@ -61,8 +100,19 @@ const CurrentStory: FC<CurrentStoryProps> = ({ currentStory, roomName, roomId })
           </Tooltip>
         </Box>
       </Box>
-      <Box sx={{ p: 2, bgcolor: 'primary.light', borderRadius: 1, mb: 3 }}>
-        <Typography variant="body1">
+      <Box sx={{ 
+        p: { xs: 1.5, sm: 2 }, 
+        bgcolor: 'primary.light', 
+        borderRadius: 1, 
+        mb: 3,
+        wordBreak: 'break-word'
+      }}>
+        <Typography 
+          variant="body1"
+          sx={{
+            fontSize: { xs: '0.9rem', sm: '1rem' }
+          }}
+        >
           {currentStory?.description || currentStory?.title}
         </Typography>
       </Box>

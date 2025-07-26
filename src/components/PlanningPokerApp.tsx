@@ -72,35 +72,76 @@ const AppLayout = () => {
       <AppBar
         position="fixed"
         elevation={0}
-        sx={{ backgroundColor: "white", borderBottom: "1px solid #e0e0e0", width: "100%" }  }
+        sx={{ backgroundColor: "white", borderBottom: "1px solid #e0e0e0", width: "100%" }}
       >
-        <Toolbar>
-          <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}>
-            <SprintPlannerIcon sx={{ color: "primary.main", mr: 1.5, fontSize: 32 }} />
+        <Toolbar sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' }, py: { xs: 1, sm: 0 } }}>
+          <Box 
+            sx={{ 
+              display: "flex", 
+              alignItems: "center", 
+              flexGrow: 1,
+              cursor: "pointer",
+              '&:hover': {
+                '& .app-title': {
+                  color: 'primary.main',
+                },
+              },
+              minWidth: { xs: '100%', sm: 'auto' },
+              mb: { xs: 1, sm: 0 },
+              order: { xs: 1, sm: 1 }
+            }}
+            onClick={() => navigate('/')}
+          >
+            <SprintPlannerIcon sx={{ color: "primary.main", mr: 1.5, fontSize: { xs: 28, sm: 32 } }} />
             <Typography
               variant="h6"
               component="div"
-              sx={{ color: "text.primary", fontWeight: "bold" }}
+              className="app-title"
+              sx={{ 
+                color: "text.primary", 
+                fontWeight: "bold",
+                transition: 'color 0.2s',
+                fontSize: { xs: '1.1rem', sm: '1.25rem' }
+              }}
             >
               The Sprint Planner
             </Typography>
           </Box>
-          <Box>
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: { xs: 'wrap', sm: 'nowrap' },
+            justifyContent: { xs: 'center', sm: 'flex-end' },
+            width: { xs: '100%', sm: 'auto' },
+            order: { xs: 2, sm: 2 }
+          }}>
             {isRoomPage ? (
               <>
                 <Tooltip title="Copy room URL to share with others">
                   <Button
                     color="inherit"
-                    sx={{ color: "text.secondary", textTransform: "none", mr: 1 }}
+                    variant="outlined"
+                    sx={{ 
+                      color: "text.secondary", 
+                      textTransform: "none", 
+                      mr: { xs: 1, sm: 1 },
+                      mb: { xs: 1, sm: 0 },
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                      borderColor: 'divider',
+                      py: 0.75
+                    }}
                     startIcon={<LinkIcon />}
                     onClick={handleCopyToClipboard}
                   >
-                    Copy Invite Link
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>Copy Invite Link</Box>
+                    <Box component="span" sx={{ display: { xs: 'block', sm: 'none' } }}>Copy Link</Box>
                   </Button>
                 </Tooltip>
                 <Button
                   color="error"
-                  sx={{ textTransform: "none" }}
+                  sx={{ 
+                    textTransform: "none",
+                    mb: { xs: 1, sm: 0 }
+                  }}
                   startIcon={<LeaveIcon />}
                   onClick={handleLeaveRoom}
                 >
@@ -111,19 +152,43 @@ const AppLayout = () => {
               <>
                 <Button
                   color="inherit"
-                  sx={{ color: "text.secondary", textTransform: "none" }}
+                  variant="text"
+                  sx={{ 
+                    color: "text.secondary", 
+                    textTransform: "none",
+                    mr: { xs: 1, sm: 2 },
+                    mb: { xs: 1, sm: 0 },
+                    fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                    py: 0.75
+                  }}
                 >
-                  How it works
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>How it works</Box>
+                  <Box component="span" sx={{ display: { xs: 'block', sm: 'none' } }}>Help</Box>
                 </Button>
                 <Button
                   color="inherit"
-                  sx={{ color: "text.secondary", textTransform: "none" }}
+                  variant="text"
+                  sx={{ 
+                    color: "text.secondary", 
+                    textTransform: "none",
+                    mr: { xs: 1, sm: 2 },
+                    mb: { xs: 1, sm: 0 },
+                    fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                    py: 0.75
+                  }}
                 >
                   About
                 </Button>
                 <Button
                   color="inherit"
-                  sx={{ color: "text.secondary", textTransform: "none" }}
+                  variant="text"
+                  sx={{ 
+                    color: "text.secondary", 
+                    textTransform: "none",
+                    mb: { xs: 1, sm: 0 },
+                    fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                    py: 0.75
+                  }}
                 >
                   Contact
                 </Button>
@@ -161,6 +226,8 @@ const PlanningPokerApp = () => {
     createRoomDialog,
     newRoomName,
     isCreatingRoom,
+    loading,
+    error,
     setCreateRoomDialog,
     setNewRoomName,
     handleCreateRoom,
@@ -192,6 +259,8 @@ const PlanningPokerApp = () => {
     <>
       <HomePage
         rooms={rooms}
+        loading={loading}
+        error={error}
         handleJoinRoom={handleJoinRoomAndSwitchView}
         handleJoinRoomById={handleJoinRoomByIdAndSwitchView}
         setCreateRoomDialog={setCreateRoomDialog}

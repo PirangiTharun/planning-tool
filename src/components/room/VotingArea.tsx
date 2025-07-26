@@ -20,12 +20,12 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
       <Box
         sx={{
           display: 'grid',
-          gap: 2,
+          gap: { xs: 1, sm: 2 },
           mb: 3,
           gridTemplateColumns: {
-            xs: 'repeat(2, 1fr)',
-            sm: 'repeat(3, 1fr)',
-            md: 'repeat(4, 1fr)',
+            xs: 'repeat(3, 1fr)',
+            sm: 'repeat(4, 1fr)',
+            md: 'repeat(6, 1fr)',
             lg: 'repeat(6, 1fr)'
           },
         }}
@@ -49,8 +49,19 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
             }}
             onClick={handleVote && !showResults ? () => handleVote(num) : undefined}
           >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <Typography variant="h4">{num}</Typography>
+            <CardContent sx={{ 
+              textAlign: 'center', 
+              py: { xs: 1, sm: 2, md: 3 },
+              px: { xs: 1, sm: 2 }
+            }}>
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
+                }}
+              >
+                {num}
+              </Typography>
             </CardContent>
           </Card>
         ))}
@@ -71,8 +82,19 @@ const VotingArea: FC<VotingAreaProps> = ({ showResults, selectedEstimate, handle
           }}
           onClick={handleVote && !showResults ? () => handleVote('?') : undefined}
         >
-          <CardContent sx={{ textAlign: 'center', py: 3 }}>
-            <Typography variant="h4">?</Typography>
+          <CardContent sx={{ 
+            textAlign: 'center', 
+            py: { xs: 1, sm: 2, md: 3 },
+            px: { xs: 1, sm: 2 }
+          }}>
+            <Typography 
+              variant="h4" 
+              sx={{ 
+                fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
+              }}
+            >
+              ?
+            </Typography>
           </CardContent>
         </Card>
       </Box>

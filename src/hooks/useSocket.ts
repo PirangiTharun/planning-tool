@@ -13,6 +13,8 @@ export const useSocket = (roomId: string | null, participantId?: string | null, 
   const ws = useRef<WebSocket | null>(null);
   const hasConnected = useRef<boolean>(false);
   const currentRoomId = useRef<string | null>(null);
+  const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
+  const connectionStartTime = useRef<number | null>(null);
 
   useEffect(() => {
     if (!roomId || !shouldConnect) return;
@@ -56,23 +58,70 @@ export const useSocket = (roomId: string | null, participantId?: string | null, 
       console.log('WebSocket connected');
       setIsConnected(true);
       hasConnected.current = true;
+      connectionStartTime.current = Date.now();
       
       // Don't send connectSocket automatically anymore
       // This will be handled by connectAndAddParticipant method
       
       // Add the beforeunload listener after successful connection
       window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      // Set up heartbeat to prevent WebSocket from disconnecting due to inactivity
+      // AWS API Gateway WebSockets disconnect after 10 minutes of inactivity
+      // We'll send a heartbeat every 8 minutes
+      if (heartbeatInterval.current) {
+        clearInterval(heartbeatInterval.current);
+      }
+      
+      heartbeatInterval.current = setInterval(() => {
+        // Check if we've been connected for more than 1 and half hour (5400000 ms)
+        const connectionDuration = Date.now() - (connectionStartTime.current || 0);
+        if (connectionDuration > 90 * 60 * 1000) { 
+          // Stop sending heartbeats after 1 and half hour
+          if (heartbeatInterval.current) {
+            console.log('Stopping heartbeat after 1 and half hour of connection');
+            clearInterval(heartbeatInterval.current);
+            heartbeatInterval.current = null;
+          }
+          return;
+        }
+        
+        // Send heartbeat if socket is open
+        if (socket.readyState === WebSocket.OPEN) {
+          const heartbeatMessage = JSON.stringify({
+            action: 'heartbeat',
+            body: { roomId, timestamp: Date.now() }
+          });
+          socket.send(heartbeatMessage);
+          console.log('Sent heartbeat to keep WebSocket alive');
+        }
+      }, 8 * 60 * 1000); // 8 minutes (8 * 60 * 1000 = 480000 ms)
     };
 
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      
+      // Handle heartbeat responses separately
+      if (message.action === 'heartbeat' || 
+          (message.type === 'heartbeat' && message.body?.action === 'heartbeat')) {
+        console.log('Received heartbeat response from server');
+        return; // Don't update lastMessage for heartbeats
+      }
+      
       setLastMessage(message);
     };
 
-    socket.onclose = () => {
-      console.log('WebSocket disconnected');
+    socket.onclose = (event) => {
+      console.log('WebSocket disconnected', event);
       setIsConnected(false);
-      hasConnected.current = false;
+      // Remove the beforeunload listener when the socket is closed
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      // Clear the heartbeat interval when the socket is closed
+      if (heartbeatInterval.current) {
+        clearInterval(heartbeatInterval.current);
+        heartbeatInterval.current = null;
+      }
     };
 
     socket.onerror = (error) => {
@@ -83,6 +132,12 @@ export const useSocket = (roomId: string | null, participantId?: string | null, 
       console.log('Cleaning up WebSocket connection');
       hasConnected.current = false;
       currentRoomId.current = null;
+      
+      // Clear the heartbeat interval when the component is unmounted
+      if (heartbeatInterval.current) {
+        clearInterval(heartbeatInterval.current);
+        heartbeatInterval.current = null;
+      }
       
       // Remove the beforeunload listener
       window.removeEventListener('beforeunload', handleBeforeUnload);

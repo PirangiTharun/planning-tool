@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { FC } from 'react';
 import {
   Paper,
@@ -23,6 +24,23 @@ interface StoriesListProps {
 }
 
 const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurrentStoryIndex, setAddStoryDialog, isRoomCreator = false, votes = {}, showResults = false }) => {
+  // Ref for the scrollable container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Effect to scroll to the selected story when it changes
+  useEffect(() => {
+    if (stories.length === 0 || !scrollContainerRef.current) return;
+    
+    // Find all list items in the container
+    const listItems = scrollContainerRef.current.querySelectorAll('.story-list-item');
+    if (listItems && listItems.length > currentStoryIndex) {
+      // Scroll to the selected story
+      listItems[currentStoryIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      });
+    }
+  }, [currentStoryIndex, stories.length]);
   
   // Calculate final estimate for completed stories
   const getFinalEstimate = (story: Story, index: number) => {
@@ -52,8 +70,28 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
   };
 
   return (
-    <Paper sx={{ p: 2, mb: 2, maxHeight: '43vh', overflowY: 'auto' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <Paper sx={{ 
+      position: 'relative',
+      mb: 2, 
+      maxHeight: '43vh', 
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden' // Hide overflow on the main container
+    }}>
+      {/* Sticky header */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        p: 2,
+        pb: 1,
+        position: 'sticky',
+        top: 0,
+        backgroundColor: 'white',
+        zIndex: 10,
+        borderBottom: '1px solid',
+        borderColor: 'divider'
+      }}>
         <Typography variant="h6">Stories</Typography>
         {isRoomCreator && (
           <Button
@@ -69,54 +107,78 @@ const StoriesList: FC<StoriesListProps> = ({ stories, currentStoryIndex, setCurr
           </Button>
         )}
       </Box>
-      <List dense>
-        {stories.map((story, index) => (
-          <ListItem key={story.id} disablePadding>
-            <ListItemButton
-              selected={index === currentStoryIndex}
-              onClick={isRoomCreator ? () => setCurrentStoryIndex(index) : undefined}
-              sx={{
-                borderRadius: 1,
-                mb: 1,
-                backgroundColor:
-                  index === currentStoryIndex
-                    ? 'primary.light'
-                    : (story.status === 'completed' || story.status === 'complete')
-                    ? 'success.light'
-                    : 'transparent',
-                color: 'inherit',
-                borderLeft: '4px solid',
-                borderColor:
-                  index === currentStoryIndex
-                    ? 'primary.main'
-                    : (story.status === 'completed' || story.status === 'complete')
-                    ? 'success.main'
-                    : 'grey.300',
-                cursor: isRoomCreator ? 'pointer' : 'default',
-                '&:hover': {
-                  backgroundColor:
-                    index === currentStoryIndex
-                      ? 'primary.light'
-                      : (story.status === 'completed' || story.status === 'complete')
-                      ? 'success.dark'
-                      : 'action.hover',
-                },
-              }}
-            >
-              <ListItemText
-                primary={story.title}
-                secondary={
-                  (story.status === 'completed' || story.status === 'complete')
-                    ? getFinalEstimate(story, index)
-                    : story.status === 'votingInProgress'
-                    ? 'Voting in progress...'
-                    : story.status
-                }
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+      
+      {/* Scrollable content area */}
+      <Box 
+        ref={scrollContainerRef}
+        sx={{ 
+          overflowY: 'auto',
+          flexGrow: 1,
+          px: 2,
+          pb: 2
+        }}
+      >
+        {stories.length === 0 ? (
+          <Box sx={{ py: 3, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              No stories added yet.
+            </Typography>
+          </Box>
+        ) : (
+          <List dense>
+            {stories.map((story, index) => (
+              <ListItem 
+                key={story.id} 
+                disablePadding
+                className="story-list-item"
+              >
+                <ListItemButton
+                  selected={index === currentStoryIndex}
+                  onClick={isRoomCreator ? () => setCurrentStoryIndex(index) : undefined}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 1,
+                    backgroundColor:
+                      index === currentStoryIndex
+                        ? 'primary.light'
+                        : (story.status === 'completed' || story.status === 'complete')
+                        ? 'success.light'
+                        : 'transparent',
+                    color: 'inherit',
+                    borderLeft: '4px solid',
+                    borderColor:
+                      index === currentStoryIndex
+                        ? 'primary.main'
+                        : (story.status === 'completed' || story.status === 'complete')
+                        ? 'success.main'
+                        : 'grey.300',
+                    cursor: isRoomCreator ? 'pointer' : 'default',
+                    '&:hover': {
+                      backgroundColor:
+                        index === currentStoryIndex
+                          ? 'primary.light'
+                          : (story.status === 'completed' || story.status === 'complete')
+                          ? 'success.dark'
+                          : 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemText
+                    primary={story.title}
+                    secondary={
+                      (story.status === 'completed' || story.status === 'complete')
+                        ? getFinalEstimate(story, index)
+                        : story.status === 'votingInProgress'
+                        ? 'Voting in progress...'
+                        : story.status
+                    }
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </Box>
     </Paper>
   );
 };

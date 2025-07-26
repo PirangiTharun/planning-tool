@@ -14,20 +14,31 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  Chip
+  Chip,
+  CircularProgress
 } from '@mui/material';
 import { Add as AddIcon, BarChart as ChartIcon } from '@mui/icons-material';
 import type { Room } from '../types';
 
 interface HomePageProps {
   rooms: Room[];
+  loading: boolean;
+  error: string | null;
   handleJoinRoom: (room: Room) => void;
   handleJoinRoomById: (roomId: string) => void;
   setCreateRoomDialog: (open: boolean) => void;
 }
 
-const HomePage: FC<HomePageProps> = ({ rooms, handleJoinRoom, handleJoinRoomById, setCreateRoomDialog }) => {
+const HomePage: FC<HomePageProps> = ({ 
+  rooms, 
+  loading, 
+  error, 
+  handleJoinRoom, 
+  handleJoinRoomById, 
+  setCreateRoomDialog 
+}) => {
   const [joinRoomId, setJoinRoomId] = useState('');
+  const hasParticipantId = !!localStorage.getItem('participantId');
 
   const handleJoinWithId = () => {
     const trimmedRoomId = joinRoomId.trim();
@@ -114,15 +125,19 @@ const HomePage: FC<HomePageProps> = ({ rooms, handleJoinRoom, handleJoinRoomById
         </Box>
       </Box>
 
-      <Typography variant="h5" gutterBottom>
-        Open Rooms
-      </Typography>
+      <Box sx={{ textAlign: 'center', mb: 2 }}>
+        <Typography variant="h5" gutterBottom>
+          Open Rooms
+        </Typography>
+      </Box>
+      
       <TableContainer component={Paper} sx={{
         boxShadow: 3,
         transition: 'box-shadow .3s',
         '&:hover': {
           boxShadow: 8,
-        }
+        },
+        mb: 4
       }}>
         <Table>
           <TableHead>
@@ -135,7 +150,50 @@ const HomePage: FC<HomePageProps> = ({ rooms, handleJoinRoom, handleJoinRoomById
             </TableRow>
           </TableHead>
           <TableBody>
-            {rooms.map((room) => (
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <CircularProgress size={40} />
+                  <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                    Loading rooms...
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+            
+            {!loading && error && (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                  <Typography color="error" sx={{ mb: 1 }}>
+                    {error}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Please try again later.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+            
+            {!loading && !error && rooms.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    No rooms available
+                  </Typography>
+                  {hasParticipantId ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Create a new room to get started
+                    </Typography>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Please create a room first. This will automatically create your participant profile.
+                    </Typography>
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+            
+            {!loading && !error && rooms.length > 0 && rooms.map((room) => (
               <TableRow key={room.id}>
                 <TableCell>{room.name}</TableCell>
                 <TableCell>{room.created}</TableCell>

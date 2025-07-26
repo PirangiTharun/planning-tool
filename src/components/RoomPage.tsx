@@ -868,7 +868,11 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
     <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
         {/* Left Sidebar */}
-        <Box sx={{ flexBasis: { xs: '100%', md: '25%' }, flexShrink: 0 }}>
+        <Box sx={{ 
+          flexBasis: { xs: '100%', md: '25%' }, 
+          flexShrink: 0,
+          order: { xs: 2, md: 1 } 
+        }}>
           <StoriesList
             stories={stories}
             currentStoryIndex={currentStoryIndex}
@@ -886,95 +890,138 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
         </Box>
 
         {/* Main Content */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ flex: 1, minWidth: 0, order: { xs: 1, md: 2 } }}>
+          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
             <CurrentStory currentStory={currentStory} roomName={roomName} roomId={roomId} />
 
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              {isRoomCreator && (
-                <>
-                  {/* Left side buttons */}
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    {!votingInProgress ? (
-                      <Tooltip 
-                        title={
-                          (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
-                            ? "Story is already completed" 
-                            : ""
-                        }
-                      >
-                        <span>
-                          <Button
-                            variant="contained"
-                            startIcon={<PlayIcon />}
-                            onClick={handleStartVoting}
-                            disabled={!stories || stories.length === 0 || (currentStory?.status === 'completed' || currentStory?.status === 'complete')}
-                          >
-                            Start Voting
-                          </Button>
-                        </span>
-                      </Tooltip>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        disabled
-                      >
-                        Voting in progress...
-                      </Button>
-                    )}
+            {isRoomCreator && (
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2, 
+                mb: 3,
+                alignItems: { xs: 'stretch', sm: 'center' }
+              }}>
+                {/* Left side buttons */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: { xs: 1, sm: 2 },
+                  width: { xs: '100%', sm: 'auto' },
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  flexWrap: { sm: 'nowrap' }
+                }}>
+                  {!votingInProgress ? (
                     <Tooltip 
                       title={
                         (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
-                          ? "Cannot skip completed story" 
+                          ? "Story is already completed" 
                           : ""
                       }
                     >
-                      <span>
+                      <span style={{ width: window.innerWidth < 600 ? '100%' : 'auto' }}>
                         <Button
-                          variant="outlined"
-                          startIcon={<SkipIcon />}
-                          onClick={handleSkipStory}
-                          disabled={currentStory?.status === 'completed' || currentStory?.status === 'complete'}
+                          variant="contained"
+                          startIcon={<PlayIcon />}
+                          onClick={handleStartVoting}
+                          disabled={!stories || stories.length === 0 || (currentStory?.status === 'completed' || currentStory?.status === 'complete')}
+                          fullWidth={window.innerWidth < 600}
+                          sx={{ 
+                            textTransform: 'none',
+                            whiteSpace: { sm: 'nowrap' }
+                          }}
                         >
-                          Skip
+                          Start Voting
                         </Button>
                       </span>
                     </Tooltip>
-                  </Box>
-                  
-                  {/* Right side buttons */}
-                  <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
-                    <Tooltip 
-                      title={
-                        (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
-                          ? "Votes are already shown for completed story" 
-                          : Object.keys(votes).length === 0 ? "No votes to show" : ""
-                      }
-                    >
-                      <span>
-                        <Button
-                          variant="outlined"
-                          startIcon={<EyeIcon />}
-                          onClick={handleShowVotes}
-                          disabled={Object.keys(votes).length === 0 || (currentStory?.status === 'completed' || currentStory?.status === 'complete')}
-                        >
-                          Show Votes
-                        </Button>
-                      </span>
-                    </Tooltip>
+                  ) : (
                     <Button
                       variant="contained"
-                      color="primary"
-                      onClick={handleNextStory}
-                      endIcon={<ChevronRightIcon />}
-                      disabled={!cardsRevealed && !(currentStory?.status === 'completed' || currentStory?.status === 'complete')}
+                      disabled
+                      fullWidth={window.innerWidth < 600}
+                      sx={{ 
+                        textTransform: 'none',
+                        whiteSpace: { sm: 'nowrap' }
+                      }}
                     >
-                      Next Story
+                      Voting in progress...
                     </Button>
-                  </Box>
-                </>
-              )}
-            </Box>
+                  )}
+                  <Tooltip 
+                    title={
+                      (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
+                        ? "Cannot skip completed story" 
+                        : ""
+                    }
+                  >
+                    <span style={{ width: window.innerWidth < 600 ? '100%' : 'auto' }}>
+                      <Button
+                        variant="outlined"
+                        startIcon={<SkipIcon />}
+                        onClick={handleSkipStory}
+                        disabled={currentStory?.status === 'completed' || currentStory?.status === 'complete'}
+                        fullWidth={window.innerWidth < 600}
+                        sx={{ 
+                          textTransform: 'none',
+                          whiteSpace: { sm: 'nowrap' }
+                        }}
+                      >
+                        Skip
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Box>
+                
+                {/* Right side buttons */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: { xs: 1, sm: 2 }, 
+                  ml: { xs: 0, sm: 'auto' },
+                  mt: { xs: 1, sm: 0 },
+                  width: { xs: '100%', sm: 'auto' },
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  flexWrap: { sm: 'nowrap' }
+                }}>
+                  <Tooltip 
+                    title={
+                      (currentStory?.status === 'completed' || currentStory?.status === 'complete') 
+                        ? "Votes are already shown for completed story" 
+                        : Object.keys(votes).length === 0 ? "No votes to show" : ""
+                    }
+                  >
+                    <span style={{ width: window.innerWidth < 600 ? '100%' : 'auto' }}>
+                      <Button
+                        variant="outlined"
+                        startIcon={<EyeIcon />}
+                        onClick={handleShowVotes}
+                        disabled={Object.keys(votes).length === 0 || (currentStory?.status === 'completed' || currentStory?.status === 'complete')}
+                        fullWidth={window.innerWidth < 600}
+                        sx={{ 
+                          textTransform: 'none',
+                          whiteSpace: { sm: 'nowrap' }
+                        }}
+                      >
+                        Show Votes
+                      </Button>
+                    </span>
+                  </Tooltip>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleNextStory}
+                    endIcon={<ChevronRightIcon />}
+                    disabled={!cardsRevealed && !(currentStory?.status === 'completed' || currentStory?.status === 'complete')}
+                    fullWidth={window.innerWidth < 600}
+                    sx={{ 
+                      textTransform: 'none',
+                      whiteSpace: { sm: 'nowrap' }
+                    }}
+                  >
+                    Next Story
+                  </Button>
+                </Box>
+              </Box>
+            )}
 
             {/* Show voting area based on current story status */}
             {currentStory && (currentStory.status === 'votingInProgress' || currentStory.status === 'completed' || currentStory.status === 'complete') && (
