@@ -1236,7 +1236,7 @@ const RoomPage: FC<RoomPageProps> = ({ roomId, onLeaveRoom }) => {
                             {waitingParticipants.length > 0 ? (
                               <>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                  Waiting on:
+                                  Waiting for:
                                 </Typography>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
                                   {waitingParticipants.map(p => (

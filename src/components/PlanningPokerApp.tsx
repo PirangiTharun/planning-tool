@@ -80,19 +80,24 @@ const AppLayout = () => {
               display: "flex", 
               alignItems: "center", 
               flexGrow: 1,
-              cursor: "pointer",
-              '&:hover': {
-                '& .app-title': {
-                  color: 'primary.main',
-                },
-              },
               minWidth: { xs: '100%', sm: 'auto' },
               mb: { xs: 1, sm: 0 },
               order: { xs: 1, sm: 1 }
             }}
-            onClick={() => navigate('/')}
           >
-            <SprintPlannerIcon sx={{ color: "primary.main", mr: 1.5, fontSize: { xs: 28, sm: 32 } }} />
+            <SprintPlannerIcon 
+              sx={{ 
+                color: "primary.main", 
+                mr: 1.5, 
+                fontSize: { xs: 28, sm: 32 },
+                cursor: "pointer",
+                transition: 'color 0.2s',
+                '&:hover': {
+                  color: 'primary.main',
+                }
+              }}
+              onClick={() => navigate('/')}
+            />
             <Typography
               variant="h6"
               component="div"
@@ -101,8 +106,13 @@ const AppLayout = () => {
                 color: "text.primary", 
                 fontWeight: "bold",
                 transition: 'color 0.2s',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                cursor: "pointer",
+                '&:hover': {
+                  color: 'primary.main',
+                }
               }}
+              onClick={() => navigate('/')}
             >
               The Sprint Planner
             </Typography>
