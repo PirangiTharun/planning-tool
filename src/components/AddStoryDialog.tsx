@@ -17,7 +17,7 @@ interface AddStoryDialogProps {
   setNewStoryTitle: (title: string) => void;
   newStoryDescription: string;
   setNewStoryDescription: (description: string) => void;
-  onSaveAndNext: () => void;
+  onSaveAndVote: () => void;
   onSaveAndClose: () => void;
 }
 
@@ -28,7 +28,7 @@ const AddStoryDialog: FC<AddStoryDialogProps> = ({
   setNewStoryTitle,
   newStoryDescription,
   setNewStoryDescription,
-  onSaveAndNext,
+  onSaveAndVote,
   onSaveAndClose,
 }) => (
   <Dialog 
@@ -94,20 +94,20 @@ const AddStoryDialog: FC<AddStoryDialogProps> = ({
     </DialogContent>
     <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: { xs: 1, sm: 2 } }}>
       <Button 
-        onClick={onSaveAndNext} 
+        onClick={onSaveAndClose} 
         variant="outlined"
         size={window.innerWidth < 600 ? "small" : "medium"}
         sx={{ fontSize: { xs: '0.8rem', sm: 'inherit' } }}
       >
-        Save and Next
+        Save and Close
       </Button>
       <Button 
-        onClick={onSaveAndClose} 
+        onClick={onSaveAndVote} 
         variant="contained"
         size={window.innerWidth < 600 ? "small" : "medium"}
-        sx={{ fontSize: { xs: '0.8rem', sm: 'inherit' } }}
+        sx={{ fontSize: { xs: '0.8rem', sm: 'inherit' }, ml: 'auto' }}
       >
-        Save and Close
+        Save and Vote
       </Button>
     </DialogActions>
   </Dialog>
